@@ -9,18 +9,25 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@deepgram/sdk": "^3.5.1",
+    "axios": "^1.7.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "groq-sdk": "^0.6.1",
+    "next": "14.2.7",
     "react": "^18",
     "react-dom": "^18",
-    "next": "14.2.7"
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.7",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.7"
+    "typescript": "^5"
   }
 }
