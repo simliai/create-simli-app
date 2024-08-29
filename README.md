@@ -12,7 +12,7 @@ DEEPGRAM_API_KEY=your-deepgram-api-key
 ELEVENLABS_API_KEY=your-elevenlabs-api-key
 ```
 
-If you want to try Simli but don't have API access to these third parties, ask in Discord and we can help you out with that. 
+If you want to try Simli but don't have API access to these third parties, ask in Discord and we can help you out with that ([Discord Link](discord.com)). 
 
 ### Alternative STT, TTS and LLM providers 
 You can of course replace Deepgram and Elevenlabs with AI services with your own preference, or even build your own.

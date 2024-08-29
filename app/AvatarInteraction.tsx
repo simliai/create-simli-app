@@ -190,17 +190,19 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
 
   return (
     <>
-      <div className="relative w-full aspect-video">
+      {startWebRTC ? (
+        <>
+        <div className="relative w-full aspect-video">
         <video ref={videoRef} id="simli_video" autoPlay playsInline className="w-full h-full object-cover"></video>
         <audio ref={audioRef} id="simli_audio" autoPlay ></audio>
       </div>
-      {startWebRTC ? (
         <div 
           ref={textAreaRef}
           className="w-full h-32 bg-black-800 text-white p-2 overflow-y-auto"
         >
           {chatgptText}
         </div>
+        </>
       ) : (
         <button
           onClick={handleStart}
