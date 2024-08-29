@@ -24,7 +24,7 @@ To run the back-end and the app, run the following command:
 
 
 ```bash
-node server.js && npm run dev
+npm run start
 ```
 
 ### Characters

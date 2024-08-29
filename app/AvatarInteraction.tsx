@@ -207,7 +207,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
           disabled={isLoading}
           className="w-full bg-white text-black py-2 px-4 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          {isLoading ? 'Starting...' : 'Start Conversation'}
+          {isLoading ? 'Starting...' : 'Start Interaction'}
         </button>
       )}
       {error && <p className="mt-4 text-red-500">{error}</p>}
