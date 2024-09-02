@@ -1,7 +1,7 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import AvatarInteraction from './AvatarInteraction';
-import SimliHeaderLogo from './Header';
+import SimliHeaderLogo from './Logo';
 import Navbar from './Navbar';
 import { Avatar } from './types';
 
@@ -109,17 +109,9 @@ const Demo: React.FC = () => {
 
         <h1>Alternative STT, TTS and LLM providers</h1>
         <p>You can of course replace Deepgram and Elevenlabs with AI services with your own preference, or even build your own. The only requirement for Simli to work is that audio is sent using PCM16 format and 16KHz sample rate. If you're having trouble getting nice audio, feel free to ask for help in Discord.</p>
-        <p>To run the back-end and the app, run the following command:</p>
-        <code>npm run start</code>
-        <img src="/api/placeholder/200/200" alt="Einstein"></img>
-        <img src="/api/placeholder/200/200" alt="Character 2"></img>
-        <img src="/api/placeholder/200/200" alt="Character 3"></img>
-        <img src="/api/placeholder/200/200" alt="Character 4"></img>
+
         <h2>Characters</h2>
         <p>You'll start with Einstein but you can add more characters by <a href="https://simli.com">creating your own</a> or finding one that you like in the <a href="https://docs.simli.com">docs</a>.</p>
-
-        <h2>Deploy on Vercel</h2>
-        <p>The easiest way to deploy your avatar interaction to use the <a href="https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme">Vercel Platform</a>.</p>
     </div>
       {error && <p className="mt-6 text-red-500 bg-red-100 border border-red-400 rounded p-3">{error}</p>}
     </div>
