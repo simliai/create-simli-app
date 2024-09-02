@@ -16,10 +16,10 @@ interface Avatar {
 
 // Updated JSON structure for avatar data with image URLs
 const avatar = {
-    name: "Einstein",
-    simli_faceid: "d3376e76-8830-4b86-84d0-86f25332c92e",
+    name: "Chrystal",
+    simli_faceid: "b7da5ed1-2abc-47c8-b7a6-0b018e031a26",
     elevenlabs_voiceid: "kFsnovBBn69vNsybyS3T",
-    initialPrompt: "You are Einstein. Start with a short greeting. Keep your responses shorter than 50 tokens",
+    initialPrompt: "You are Chrystal. Start with short greeting and a cheeky compliment. Less than 50 token response",
     imageUrl: "/characters/einstein.jpg"
 }
 
@@ -95,22 +95,8 @@ const Demo: React.FC = () => {
         </div>
       )}
       <div className="w-full max-w-2xl flex flex-col items-center gap-6 my-16">
-        <ul>
-        <li>1. Start by putting in environment variables</li>
-        <li>2. Create a <code>.env.local</code> file in the root of the project and add the following environment variables:</li>
-        <code>
-          SIMLI_API_KEY=your-simli-api-key <br/>
-          GROQ_API_KEY=your-groq-api-key <br/>
-          DEEPGRAM_API_KEY=your-deepgram-api-key <br/>
-          ELEVENLABS_API_KEY=your-elevenlabs-api-key <br/>
-        </code>
-        </ul>
-        <p>Note: If you want to try Simli but don't have API access to these third parties, ask in Discord and we can help you out with that.</p>
+        Edit app/page.tsx and put in your API keys. 
 
-        <h1>Alternative STT, TTS and LLM providers</h1>
-        <p>You can of course replace Deepgram and Elevenlabs with AI services with your own preference, or even build your own. The only requirement for Simli to work is that audio is sent using PCM16 format and 16KHz sample rate. If you're having trouble getting nice audio, feel free to ask for help in Discord.</p>
-
-        <h2>Characters</h2>
         <p>You'll start with Einstein but you can add more characters by <a href="https://simli.com">creating your own</a> or finding one that you like in the <a href="https://docs.simli.com">docs</a>.</p>
     </div>
       {error && <p className="mt-6 text-red-500 bg-red-100 border border-red-400 rounded p-3">{error}</p>}

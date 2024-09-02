@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SimliClient } from 'simli-client';
+import DottedFace from './DottedFace';
 import VideoBox from './VideoBox';
 interface AvatarInteractionProps {
   simli_faceid: string;
@@ -190,6 +191,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
 
   return (
     <>
+    <DottedFace/>
     <VideoBox video={videoRef} audio={audioRef} />
       {startWebRTC ? (
         <div ref={textAreaRef} className="w-full h-32 bg-black-800 text-white p-2 overflow-y-auto">
