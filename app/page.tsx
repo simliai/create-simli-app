@@ -1,8 +1,10 @@
 'use client';
 import React, { useCallback, useEffect, useState } from 'react';
 import AvatarInteraction from './AvatarInteraction';
+import SimliHeaderLogo from './Header';
 import Navbar from './Navbar';
 import { Avatar } from './types';
+
 // Update the Avatar interface to include an image URL
 interface Avatar {
   name: string;
@@ -58,6 +60,7 @@ const Demo: React.FC = () => {
   , [selectedAvatar]);
   return (
     <div className="bg-black min-h-screen flex flex-col items-center font-mono text-white p-8">
+      <SimliHeaderLogo/>
       <Navbar/>
       <h1 className="text-4xl font-bold mb-8">Create Simli App</h1>
       {false ? (
