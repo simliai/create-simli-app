@@ -89,7 +89,7 @@ const Demo: React.FC = () => {
               onTouchEnd={stopRecording}
               className="w-full mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
             >
-              {isRecording ? 'Listening...' : 'Start'}
+              {isRecording ? 'Listening...' : 'Push to Speak'}
             </button>
           </div>
         </div>
