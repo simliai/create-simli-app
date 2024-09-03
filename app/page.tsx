@@ -63,14 +63,6 @@ const Demo: React.FC = () => {
       <SimliHeaderLogo/>
       <Navbar/>
       <h1 className="text-4xl font-bold mb-8">Create Simli App</h1>
-      {false ? (
-          <button 
-          onClick={() => setSelectedAvatar(avatar)} 
-          className="bg-black-600 text-white py-2 px-6 rounded-full hover:bg-simliblue transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-        >
-          ← Start interaction
-        </button>
-      ) : (
         <div className="w-full max-w-2xl flex flex-col items-center gap-6">
           <div className="bg-effect15White p-6 rounded-xl w-full">
             <h2 className="text-2xl font-bold mb-4"></h2>
@@ -93,7 +85,6 @@ const Demo: React.FC = () => {
             </button>
           </div>
         </div>
-      )}
       <div className="w-full max-w-2xl flex flex-col items-center gap-6 my-16">
         Edit app/page.tsx and put in your API keys. 
 
