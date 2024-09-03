@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SimliClient } from 'simli-client';
-import VideoBox from './VideoBox';
+import WebRTCInteractionBox from './WebRTCInteractionBox';
 interface AvatarInteractionProps {
   simli_faceid: string;
   elevenlabs_voiceid: string;
@@ -19,6 +19,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   audioStream
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isInteractionStarted, setIsInteractionStarted] = useState(false);
   const [error, setError] = useState('');
   const [startWebRTC, setStartWebRTC] = useState(false);
   const [connectionId, setConnectionId] = useState<string | null>(null);
@@ -120,7 +121,9 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   }, []);
 
   const handleStart = useCallback(async () => {
-    setIsLoading(true);
+    console.log("Handlestart() is called..")
+    setIsLoading(true)
+    setIsInteractionStarted(true);
     setError('');
 
     try {
@@ -187,10 +190,12 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       };
     }
   }, [audioStream]);
+  
 
   return (
     <>
-    <VideoBox video={videoRef} audio={audioRef} />
+ 
+    <WebRTCInteractionBox interactionHasStarted={isInteractionStarted} webRTCStarted={isWebRTCConnected()} video={videoRef} audio={audioRef} /> 
       {startWebRTC ? (
         <div ref={textAreaRef} className="w-full h-32 bg-black-800 text-white p-2 overflow-y-auto">
           {chatgptText}
