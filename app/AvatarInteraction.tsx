@@ -129,7 +129,16 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
            dc !== null && 
            dc.readyState === 'open';
   }, []);
-
+  const handleCancel = useCallback(async () => {
+    setIsLoading(false);
+    setError('');
+    setStartWebRTC(false);
+    setIsRecording(false);
+    setAudioStream(null);
+    simliClientRef.current?.close();
+    socketRef.current?.close();
+    window.location.href = '/'; /* TODO: Is it bad practice to do this? Just sending user back to '/' */
+  }, []);
   /* handleStart() is called when the Start button is called. It starts the websocket conversation and then checks if webRTC is connected   */
   const handleStart = useCallback(async () => {
     startRecording();
@@ -195,14 +204,23 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       <div className={`transition-all duration-300 ${showDottedFace ? 'h-0 overflow-hidden' : 'h-auto'}`}>
       <VideoBox video={videoRef} audio={audioRef} />
       </div>
-        <div>
-          <button
+        <div className="flex justify-center">
+          {isLoading? (
+            <button
+            onClick={handleCancel}
+            className="w-2/3 mt-4 bg-red-600 text-white py-3 justify-center px-6 rounded-xl hover:bg-red-700 transition-all duration-300"
+            >
+            Stop
+            </button>
+          ) : (
+            <button
             onClick={handleStart}
             disabled={isLoading}
-            className="w-full mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
+            className="w-2/3 mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-xl hover:from-simliblue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
             >
-            {isLoading ? 'Starting...' : 'Test interaction'}
-          </button>
+            Test interaction
+            </button>
+          )}
       </div>
       {error && <p className="mt-4 text-red-500">{error}</p>}
     </>

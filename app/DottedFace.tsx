@@ -5,12 +5,12 @@ import dottedface from '../media/dottedface.gif';
 export default function DottedFace(props: any) {
     return (
     
-        <div className="flex justify-center items-center w-512 h-512">
+        <div className="flex justify-center items-center">
            <Image 
                 src={dottedface} 
                 alt="loading..." 
-                width={512}
-                height={512}
+                width={350}
+                height={350}
             />
         </div>
     );

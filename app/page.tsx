@@ -55,7 +55,6 @@ const Demo: React.FC = () => {
     <div className="bg-black min-h-screen flex flex-col items-center font-mono text-white p-8">
       <SimliHeaderLogo/>
       <Navbar/>
-      <h1 className="text-4xl font-bold mb-8">Create Simli App</h1>
         <div className="w-full max-w-2xl flex flex-col items-center gap-6">
           <div className="bg-effect15White p-6 rounded-xl w-full">
             <h2 className="text-2xl font-bold mb-4"></h2>

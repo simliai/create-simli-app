@@ -18,6 +18,7 @@ const config: Config = {
       indigo: colors.indigo,
       yellow: colors.yellow,
       blue: colors.blue,
+      red: colors.red,
       simliblue: '#0000ff'
     }, 
     extend: {
