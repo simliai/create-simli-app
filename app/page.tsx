@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import AvatarInteraction from './AvatarInteraction';
 import SimliHeaderLogo from './Logo';
 import Navbar from './Navbar';
@@ -19,7 +19,7 @@ const avatar = {
     name: "Chrystal",
     simli_faceid: "b7da5ed1-2abc-47c8-b7a6-0b018e031a26",
     elevenlabs_voiceid: "cgSgspJ2msm6clMCkdW9",
-    initialPrompt: "You are the template avatar for Create-Simli-App. Start welcome to Simli and that they can start building now. Guide people to the discord/docs. Keep it short.",
+    initialPrompt: "You are the template avatar for Create-Simli-App. Start welcome to Simli and that they can start building their interactive app now. Guide people to the discord/docs. Keep it short.",
 }
 
 const Demo: React.FC = () => {
@@ -27,7 +27,7 @@ const Demo: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
 
-  const startRecording = useCallback(async () => {
+  const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream);
@@ -36,15 +36,7 @@ const Demo: React.FC = () => {
       console.error('Error accessing microphone:', err);
       setError('Error accessing microphone. Please check your permissions.');
     }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    setIsRecording(false);
-    if (audioStream) {
-      audioStream.getTracks().forEach(track => track.stop());
-    }
-    setAudioStream(null);
-  }, []);
+  }
 
 
   return (
@@ -63,9 +55,7 @@ const Demo: React.FC = () => {
             />
             <button
               onMouseDown={startRecording}
-              onMouseUp={stopRecording}
               onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
               className="w-full mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
             >
               {isRecording ? 'Listening...' : 'Push to Speak'}
