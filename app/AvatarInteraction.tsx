@@ -216,7 +216,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
             <button
             onClick={handleStart}
             disabled={isLoading}
-            className="w-2/3 mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-xl hover:from-simliblue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
+            className="w-2/3 mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-xl hover:from-white-600 hover:to-white-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
             >
             Test interaction
             </button>
