@@ -28,9 +28,9 @@ npm run start
 ```
 
 ### Characters
-You'll start with Einstein but you can add more characters by [creating your own](simli.com) or finding one that you like in the [docs](docs.simli.com). 
+You can swap out the character by [creating your own](simli.com) or finding one that you like in the [docs](docs.simli.com). 
 
-![alt text](images/image.png) ![alt text](images/image-4.png) ![alt text](images/image-2.png) ![alt text](images/image-3.png)
+![alt text](media/image.png) ![alt text](media/image-4.png) ![alt text](media/image-2.png) ![alt text](media/image-3.png)
 
 
 ## Deploy on Vercel

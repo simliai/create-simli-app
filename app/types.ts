@@ -14,12 +14,6 @@ export interface Avatar {
     simli_faceid: string;
     elevenlabs_voiceid: string;
     initialPrompt: string;
-    chatgptText: string;
-    onChatGPTTextChange: (newText: string) => void;
     audioStream: MediaStream | null;
   }
   
-  export interface CharacterCardProps {
-    avatar: Avatar;
-    onSelect: (avatar: Avatar) => void;
-  }

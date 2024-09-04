@@ -1,22 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SimliClient } from 'simli-client';
-
+import VideoBox from './VideoBox';
 interface AvatarInteractionProps {
   simli_faceid: string;
   elevenlabs_voiceid: string;
   initialPrompt: string;
-  chatgptText: string;
-  onChatGPTTextChange: (text: string) => void;
-  audioStream: MediaStream | null;
+  onStart: () => void;
+  showDottedFace  : boolean;
 }
 
 const AvatarInteraction: React.FC<AvatarInteractionProps> = ({ 
   simli_faceid, 
   elevenlabs_voiceid,
   initialPrompt,
-  chatgptText,
-  onChatGPTTextChange,
-  audioStream
+  onStart, 
+  showDottedFace
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,6 +26,24 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   const simliClientRef = useRef<SimliClient | null>(null);
   const textAreaRef = useRef<HTMLDivElement>(null);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
+      setIsRecording(true);
+      const audioData = new Uint8Array(6000).fill(0);
+      simliClientRef.current?.sendAudioData(audioData);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      setError('Error accessing microphone. Please check your permissions.');
+    }
+  }
+
+
+  /* initializeSimliClient() initializes a new client if videoRef and audioRef are set */
   const initializeSimliClient = useCallback(() => {
     if (videoRef.current && audioRef.current) {
       const SimliConfig = {
@@ -42,8 +58,9 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       simliClientRef.current.Initialize(SimliConfig);
       console.log('Simli Client initialized');
     }
-  }, [simli_faceid]);
+  }, []);
 
+    /* startConversation() queries our local backend to start an elevenLabs conversation over Websockets */
   const startConversation = useCallback(async () => {
     try {
       const response = await fetch('http://localhost:8080/start-conversation', {
@@ -71,8 +88,9 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       console.error('Error starting conversation:', error);
       setError('Failed to start conversation. Please try again.');
     }
-  }, [initialPrompt, elevenlabs_voiceid]);
+  }, []);
 
+  /* initializeWebSocket() sets up a websocket that we can use to talk to our local backend */
   const initializeWebSocket = useCallback((connectionId: string) => {
     socketRef.current = new WebSocket(`ws://localhost:8080/ws?connectionId=${connectionId}`);
   
@@ -87,15 +105,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
           simliClientRef.current?.sendAudioData(uint8Array);
         });
       } else {
-        try {
           const message = JSON.parse(event.data);
-          if (message.type === 'text') {
-            console.log('Received text message:', message.content);
-            onChatGPTTextChange(prevText => prevText + message.content);
-          }
-        } catch (error) {
-          console.error('Error parsing message:', error);
-        }
       }
     };
   
@@ -103,8 +113,9 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       console.error('WebSocket error:', error);
       setError('WebSocket connection error. Please check if the server is running.');
     };
-  }, [onChatGPTTextChange]);
+  }, []);
 
+  /* isWebRTCConnected() checks if SimliClient has an open data channel and peer-connection  */
   const isWebRTCConnected = useCallback(() => {
     if (!simliClientRef.current) return false;
     
@@ -118,12 +129,24 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
            dc !== null && 
            dc.readyState === 'open';
   }, []);
-
+  const handleCancel = useCallback(async () => {
+    setIsLoading(false);
+    setError('');
+    setStartWebRTC(false);
+    setIsRecording(false);
+    setAudioStream(null);
+    simliClientRef.current?.close();
+    socketRef.current?.close();
+    window.location.href = '/'; /* TODO: Is it bad practice to do this? Just sending user back to '/' */
+  }, []);
+  /* handleStart() is called when the Start button is called. It starts the websocket conversation and then checks if webRTC is connected   */
   const handleStart = useCallback(async () => {
+    startRecording();
+    onStart();
     setIsLoading(true);
     setError('');
 
-    try {
+      console.log('Starting ElevenLabs conversation');
       await startConversation();
       console.log('Starting WebRTC');
       simliClientRef.current?.start();
@@ -143,13 +166,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       };
 
       setTimeout(checkConnection, 4000);  // Start checking after 4 seconds
-    } catch (error) {
-      console.error('Error starting conversation:', error);
-      setError('Failed to start conversation. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [startConversation, isWebRTCConnected]);
+  }, []);
 
   useEffect(() => {
     initializeSimliClient();
@@ -165,12 +182,6 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   }, [initializeSimliClient]);
 
   useEffect(() => {
-    if (textAreaRef.current) {
-      textAreaRef.current.scrollTop = textAreaRef.current.scrollHeight;
-    }
-  }, [chatgptText]);
-
-  useEffect(() => {
     if (audioStream && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const mediaRecorder = new MediaRecorder(audioStream);
       
@@ -178,7 +189,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
         if (event.data.size > 0) {
           socketRef.current?.send(event.data);
         }
-      };
+      };  
 
       mediaRecorder.start(100);
 
@@ -190,28 +201,27 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
 
   return (
     <>
-      {startWebRTC ? (
-        <>
-        <div className="relative w-full aspect-video">
-        <video ref={videoRef} id="simli_video" autoPlay playsInline className="w-full h-full object-cover"></video>
-        <audio ref={audioRef} id="simli_audio" autoPlay ></audio>
+      <div className={`transition-all duration-300 ${showDottedFace ? 'h-0 overflow-hidden' : 'h-auto'}`}>
+      <VideoBox video={videoRef} audio={audioRef} />
       </div>
-        <div 
-          ref={textAreaRef}
-          className="w-full h-32 bg-black-800 text-white p-2 overflow-y-auto"
-        >
-          {chatgptText}
-        </div>
-        </>
-      ) : (
-        <button
-          onClick={handleStart}
-          disabled={isLoading}
-          className="w-full bg-white text-black py-2 px-4 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Starting...' : 'Start Interaction'}
-        </button>
-      )}
+        <div className="flex justify-center">
+          {isLoading? (
+            <button
+            onClick={handleCancel}
+            className="w-2/3 mt-4 bg-red-600 text-white py-3 justify-center px-6 rounded-xl hover:bg-red-700 transition-all duration-300"
+            >
+            Stop
+            </button>
+          ) : (
+            <button
+            onClick={handleStart}
+            disabled={isLoading}
+            className="w-2/3 mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-xl hover:from-white-600 hover:to-white-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
+            >
+            Test interaction
+            </button>
+          )}
+      </div>
       {error && <p className="mt-4 text-red-500">{error}</p>}
     </>
   );

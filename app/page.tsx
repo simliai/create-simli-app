@@ -1,6 +1,9 @@
 'use client';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import AvatarInteraction from './AvatarInteraction';
+import DottedFace from './DottedFace';
+import SimliHeaderLogo from './Logo';
+import Navbar from './Navbar';
 import { Avatar } from './types';
 
 // Update the Avatar interface to include an image URL
@@ -14,82 +17,80 @@ interface Avatar {
 
 // Updated JSON structure for avatar data with image URLs
 const avatar = {
-    name: "Einstein",
-    simli_faceid: "d3376e76-8830-4b86-84d0-86f25332c92e",
-    elevenlabs_voiceid: "kFsnovBBn69vNsybyS3T",
-    initialPrompt: "You are Einstein. Start with a short greeting.",
-    imageUrl: "/characters/einstein.jpg"
+    name: "Chrystal",
+    simli_faceid: "b7da5ed1-2abc-47c8-b7a6-0b018e031a26",
+    elevenlabs_voiceid: "cgSgspJ2msm6clMCkdW9",
+    initialPrompt: "Say this introduction: Welcome to your local Create-Simli-App, the interactive demo for Simli that you can start building from. You can swap me out with other characters.",
 }
+
+
 
 const Demo: React.FC = () => {
   const [error, setError] = useState('');
-  const [chatgptText, setChatgptText] = useState('');
+  const [showDottedFace, setShowDottedFace] = useState(true);
+
   const [isRecording, setIsRecording] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
 
-  const handleChatGPTTextChange = useCallback((newText: string) => {
-    console.log('Updating chatgptText:', newText);
-    setChatgptText(newText);
-  }, []);
+  const onStart = () => {
+    console.log("Setting setshowDottedface to false...")
+    setShowDottedFace(false);
+  };
 
-  const startRecording = useCallback(async () => {
+  const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream);
       setIsRecording(true);
+      const audioData = new Uint8Array(6000).fill(0);
+      simliClientRef.current?.sendAudioData(audioData);
     } catch (err) {
       console.error('Error accessing microphone:', err);
       setError('Error accessing microphone. Please check your permissions.');
     }
-  }, []);
-
-  const stopRecording = useCallback(() => {
-    setIsRecording(false);
-    if (audioStream) {
-      audioStream.getTracks().forEach(track => track.stop());
-    }
-    setAudioStream(null);
-  }, [audioStream]);
-
-  useEffect(() => {
-    setSelectedAvatar(avatar)
   }
-  , [selectedAvatar]);
+
+  
   return (
-    <div className="bg-gradient-to-br from-gray-900 to-black min-h-screen flex flex-col items-center font-mono text-white p-8">
-      <h1 className="text-4xl font-bold mb-8">Create Simli App</h1>
-      {false ? (
-          <button 
-          onClick={() => setSelectedAvatar(avatar)} 
-          className="bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
-        >
-          Back
-        </button>
-      ) : (
-        <div className="w-full max-w-2xl flex flex-col items-center gap-6">
-          <div className="bg-gray-800 p-6 rounded-xl w-full">
+    <div className="bg-black min-h-screen flex flex-col items-center font-mono text-white p-8">
+      <SimliHeaderLogo/>
+      <Navbar/>
+      <div className="absolute top-[32px] right-[32px]">
+        <text className="font-bold mb-8 text-2xl leading-8">Create Simli App</text>
+      </div>
+        <div className="flex flex-col items-center gap-6 bg-effect15White p-6 rounded-xl w-full">
+          <div>
             <h2 className="text-2xl font-bold mb-4"></h2>
+            {showDottedFace && <DottedFace/>}
             <AvatarInteraction
               simli_faceid={avatar.simli_faceid}
               elevenlabs_voiceid={avatar.elevenlabs_voiceid}
               initialPrompt={avatar.initialPrompt}
-              chatgptText={chatgptText}
-              onChatGPTTextChange={handleChatGPTTextChange}
-              audioStream={audioStream}
+              onStart={onStart}
+              showDottedFace={showDottedFace}
             />
-            <button
-              onMouseDown={startRecording}
-              onMouseUp={stopRecording}
-              onTouchStart={startRecording}
-              onTouchEnd={stopRecording}
-              className="w-full mt-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
-            >
-              {isRecording ? 'Listening...' : 'Start Speaking'}
-            </button>
           </div>
         </div>
-      )}
+
+      <div className="max-w-[350px] flex flex-col items-center gap-6 my-16">
+      <b>Create Simli App is a starter repo for creating an interactive app with Simli.</b>
+      <div>
+      
+      </div>
+        <ol className="list-decimal"> 
+          <li>
+          Fill in your API keys in the .env file.
+          </li>
+          <li>
+          Test out the interaction and have a conversation with our default avatar. 
+          </li>
+          <li>
+         You can replace the avatar's face and voice and initial prompt with your own. Do this by editing <code>app/page.tsx</code>.
+          </li>
+        </ol>
+      You can now deploy this app to Vercel, or incorporate it as part of your existing project.  
+       {/*  <p>You can replace the character by <a href="https://simli.com">creating your own</a> or finding one that you like in the <a href="https://docs.simli.com">docs</a>.</p> */}
+    </div>
       {error && <p className="mt-6 text-red-500 bg-red-100 border border-red-400 rounded p-3">{error}</p>}
     </div>
   );
