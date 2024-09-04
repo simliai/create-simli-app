@@ -61,7 +61,7 @@ const VoiceClientWrapper: React.FC<VoiceClientWrapperProps> = ({ children }) => 
               {
                 name: "sample_rate",
                 value: 16000
-              },
+              }
             ]
           },
           {
