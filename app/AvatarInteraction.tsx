@@ -114,7 +114,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
            dc.readyState === 'open';
   }, []);
 
-    /* handleStart() is called when the Start button is called. It starts the websocket conversation and then checks if webRTC is connected   */
+  /* handleStart() is called when the Start button is called. It starts the websocket conversation and then checks if webRTC is connected   */
   const handleStart = useCallback(async () => {
     setIsLoading(true);
     setError('');

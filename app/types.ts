@@ -17,7 +17,3 @@ export interface Avatar {
     audioStream: MediaStream | null;
   }
   
-  export interface CharacterCardProps {
-    avatar: Avatar;
-    onSelect: (avatar: Avatar) => void;
-  }

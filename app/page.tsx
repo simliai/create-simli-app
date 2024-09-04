@@ -18,16 +18,14 @@ interface Avatar {
 const avatar = {
     name: "Chrystal",
     simli_faceid: "b7da5ed1-2abc-47c8-b7a6-0b018e031a26",
-    elevenlabs_voiceid: "kFsnovBBn69vNsybyS3T",
-    initialPrompt: "You are Chrystal. Start with short greeting and a cheeky compliment. Less than 50 token response",
-    imageUrl: "/characters/einstein.jpg"
+    elevenlabs_voiceid: "cgSgspJ2msm6clMCkdW9",
+    initialPrompt: "You are the template avatar for Create-Simli-App. Start welcome to Simli and that they can start building now. Guide people to the discord/docs. Keep it short.",
 }
 
 const Demo: React.FC = () => {
   const [error, setError] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
 
   const startRecording = useCallback(async () => {
     try {
