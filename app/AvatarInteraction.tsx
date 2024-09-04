@@ -5,12 +5,16 @@ interface AvatarInteractionProps {
   simli_faceid: string;
   elevenlabs_voiceid: string;
   initialPrompt: string;
+  onStart: () => void;
+  showDottedFace  : boolean;
 }
 
 const AvatarInteraction: React.FC<AvatarInteractionProps> = ({ 
   simli_faceid, 
   elevenlabs_voiceid,
   initialPrompt,
+  onStart, 
+  showDottedFace
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -129,6 +133,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   /* handleStart() is called when the Start button is called. It starts the websocket conversation and then checks if webRTC is connected   */
   const handleStart = useCallback(async () => {
     startRecording();
+    onStart();
     setIsLoading(true);
     setError('');
 
@@ -175,7 +180,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
         if (event.data.size > 0) {
           socketRef.current?.send(event.data);
         }
-      };
+      };  
 
       mediaRecorder.start(100);
 
@@ -187,21 +192,18 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
 
   return (
     <>
-    <VideoBox video={videoRef} audio={audioRef} />
-      {startWebRTC ? (
-        <div ref={textAreaRef} className="w-full h-32 bg-black-800 text-white p-2 overflow-y-auto">
-        </div>
-      ) : (
+      <div className={`transition-all duration-300 ${showDottedFace ? 'h-0 overflow-hidden' : 'h-auto'}`}>
+      <VideoBox video={videoRef} audio={audioRef} />
+      </div>
         <div>
           <button
             onClick={handleStart}
             disabled={isLoading}
             className="w-full mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
             >
-            {isLoading ? 'Starting...' : 'Start Interaction'}
+            {isLoading ? 'Starting...' : 'Test interaction'}
           </button>
       </div>
-      )}
       {error && <p className="mt-4 text-red-500">{error}</p>}
     </>
   );
