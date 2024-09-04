@@ -5,14 +5,12 @@ interface AvatarInteractionProps {
   simli_faceid: string;
   elevenlabs_voiceid: string;
   initialPrompt: string;
-  audioStream: MediaStream | null;
 }
 
 const AvatarInteraction: React.FC<AvatarInteractionProps> = ({ 
   simli_faceid, 
   elevenlabs_voiceid,
   initialPrompt,
-  audioStream
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,6 +21,23 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   const socketRef = useRef<WebSocket | null>(null);
   const simliClientRef = useRef<SimliClient | null>(null);
   const textAreaRef = useRef<HTMLDivElement>(null);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
+      setIsRecording(true);
+      const audioData = new Uint8Array(6000).fill(0);
+      simliClientRef.current?.sendAudioData(audioData);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      setError('Error accessing microphone. Please check your permissions.');
+    }
+  }
+
 
   /* initializeSimliClient() initializes a new client if videoRef and audioRef are set */
   const initializeSimliClient = useCallback(() => {
@@ -87,9 +102,6 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
         });
       } else {
           const message = JSON.parse(event.data);
-          if (message.type === 'text') {
-            console.log('Received text message:', message.content);
-          }
       }
     };
   
@@ -116,6 +128,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
 
   /* handleStart() is called when the Start button is called. It starts the websocket conversation and then checks if webRTC is connected   */
   const handleStart = useCallback(async () => {
+    startRecording();
     setIsLoading(true);
     setError('');
 
@@ -179,13 +192,15 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
         <div ref={textAreaRef} className="w-full h-32 bg-black-800 text-white p-2 overflow-y-auto">
         </div>
       ) : (
-        <button
-          onClick={handleStart}
-          disabled={isLoading}
-          className="w-full bg-white text-black py-2 px-4 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black disabled:bg-gray-400 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Starting...' : 'Start Interaction'}
-        </button>
+        <div>
+          <button
+            onClick={handleStart}
+            disabled={isLoading}
+            className="w-full mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
+            >
+            {isLoading ? 'Starting...' : 'Start Interaction'}
+          </button>
+      </div>
       )}
       {error && <p className="mt-4 text-red-500">{error}</p>}
     </>

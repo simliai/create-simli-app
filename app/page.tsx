@@ -19,24 +19,11 @@ const avatar = {
     name: "Chrystal",
     simli_faceid: "b7da5ed1-2abc-47c8-b7a6-0b018e031a26",
     elevenlabs_voiceid: "cgSgspJ2msm6clMCkdW9",
-    initialPrompt: "You are the template avatar for Simli. Start with friendly welcome to Simli and that they can start building their interactive app now. Guide people to the discord or docs. Keep it below 50 tokens.",
+    initialPrompt: "You are the template avatar for Simli. Start with friendly welcome to Simli and that they can start building their interactive video avatar app. Guide people to the discord or docs. Keep it below 50 tokens.",
 }
 
 const Demo: React.FC = () => {
   const [error, setError] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setAudioStream(stream);
-      setIsRecording(true);
-    } catch (err) {
-      console.error('Error accessing microphone:', err);
-      setError('Error accessing microphone. Please check your permissions.');
-    }
-  }
 
 
   return (
@@ -51,15 +38,7 @@ const Demo: React.FC = () => {
               simli_faceid={avatar.simli_faceid}
               elevenlabs_voiceid={avatar.elevenlabs_voiceid}
               initialPrompt={avatar.initialPrompt}
-              audioStream={audioStream}
             />
-            <button
-              onMouseDown={startRecording}
-              onTouchStart={startRecording}
-              className="w-full mt-4 bg-gradient-to-r from-simliblue to-simliblue text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300"
-            >
-              {isRecording ? 'Listening...' : 'Push to Speak'}
-            </button>
           </div>
         </div>
       <div className="w-full max-w-2xl flex flex-col items-center gap-6 my-16">
