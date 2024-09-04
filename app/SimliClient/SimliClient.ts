@@ -36,19 +36,19 @@ export class SimliClient {
 
     private setupPeerConnectionListeners() {
         if (!this.pc) return;
-
+    
         this.pc.addEventListener('icegatheringstatechange', () => {
             console.log("ICE gathering state changed: ", this.pc?.iceGatheringState);
         });
-
+    
         this.pc.addEventListener('iceconnectionstatechange', () => {
             console.log("ICE connection state changed: ", this.pc?.iceConnectionState);
         });
-
+    
         this.pc.addEventListener('signalingstatechange', () => {
             console.log("Signaling state changed: ", this.pc?.signalingState);
         });
-
+    
         this.pc.addEventListener('track', (evt) => {
             console.log("Track event: ", evt.track.kind);
             if (evt.track.kind === 'video' && this.videoRef?.current) {
@@ -57,7 +57,7 @@ export class SimliClient {
                 this.audioRef.current.srcObject = evt.streams[0];
             }
         });
-
+    
         this.pc.onicecandidate = (event) => {
             if (event.candidate === null) {
                 console.log(JSON.stringify(this.pc?.localDescription));
@@ -179,19 +179,27 @@ export class SimliClient {
 
     private async waitForIceGathering(): Promise<void> {
         if (!this.pc) return;
-
+    
         if (this.pc.iceGatheringState === 'complete') {
             return;
         }
-
+    
         await new Promise<void>((resolve) => {
             const checkState = () => {
                 if (this.pc?.iceGatheringState === 'complete') {
-                    this.pc.removeEventListener('icegatheringstatechange', checkState);
+                    this.pc?.removeEventListener('icegatheringstatechange', checkState);
                     resolve();
                 }
             }
-            this.pc.addEventListener('icegatheringstatechange', checkState);
+            if (this.pc) {
+                this.pc.addEventListener('icegatheringstatechange', checkState);
+            }
+    
+            // Add a safety timeout
+            setTimeout(() => {
+                this.pc?.removeEventListener('icegatheringstatechange', checkState);
+                resolve();
+            }, 10000); // 10 seconds timeout
         });
     }
 

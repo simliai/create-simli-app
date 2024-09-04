@@ -20,6 +20,8 @@
     "next": "14.2.7",
     "react": "^18",
     "react-dom": "^18",
+    "realtime-ai-daily": "^0.1.8",
+    "realtime-ai-react": "^0.1.8",
     "simli-client": "^1.0.1",
     "tailwind-merge": "^2.5.2",
     "ws": "^8.18.0"
