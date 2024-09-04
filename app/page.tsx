@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import AvatarInteraction from './AvatarInteraction';
 import SimliHeaderLogo from './Logo';
 import Navbar from './Navbar';
@@ -29,7 +29,6 @@ const Demo: React.FC = () => {
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
 
-
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -47,12 +46,9 @@ const Demo: React.FC = () => {
       audioStream.getTracks().forEach(track => track.stop());
     }
     setAudioStream(null);
-  }, [audioStream]);
+  }, []);
 
-  useEffect(() => {
-    setSelectedAvatar(avatar)
-  }
-  , [selectedAvatar]);
+
   return (
     <div className="bg-black min-h-screen flex flex-col items-center font-mono text-white p-8">
       <SimliHeaderLogo/>
@@ -81,7 +77,7 @@ const Demo: React.FC = () => {
       <div className="w-full max-w-2xl flex flex-col items-center gap-6 my-16">
         Edit app/page.tsx and put in your API keys. 
 
-        <p>You'll start with Einstein but you can add more characters by <a href="https://simli.com">creating your own</a> or finding one that you like in the <a href="https://docs.simli.com">docs</a>.</p>
+        <p>You can replace the character by <a href="https://simli.com">creating your own</a> or finding one that you like in the <a href="https://docs.simli.com">docs</a>.</p>
     </div>
       {error && <p className="mt-6 text-red-500 bg-red-100 border border-red-400 rounded p-3">{error}</p>}
     </div>
