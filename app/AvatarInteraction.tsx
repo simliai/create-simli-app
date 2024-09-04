@@ -5,7 +5,6 @@ interface AvatarInteractionProps {
   simli_faceid: string;
   elevenlabs_voiceid: string;
   initialPrompt: string;
-  chatgptText: string;
   audioStream: MediaStream | null;
 }
 
@@ -13,7 +12,6 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   simli_faceid, 
   elevenlabs_voiceid,
   initialPrompt,
-  chatgptText,
   audioStream
 }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -157,12 +155,6 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   }, [initializeSimliClient]);
 
   useEffect(() => {
-    if (textAreaRef.current) {
-      textAreaRef.current.scrollTop = textAreaRef.current.scrollHeight;
-    }
-  }, [chatgptText]);
-
-  useEffect(() => {
     if (audioStream && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const mediaRecorder = new MediaRecorder(audioStream);
       
@@ -185,7 +177,6 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
     <VideoBox video={videoRef} audio={audioRef} />
       {startWebRTC ? (
         <div ref={textAreaRef} className="w-full h-32 bg-black-800 text-white p-2 overflow-y-auto">
-          {chatgptText}
         </div>
       ) : (
         <button

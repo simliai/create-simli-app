@@ -25,7 +25,6 @@ const avatar = {
 
 const Demo: React.FC = () => {
   const [error, setError] = useState('');
-  const [chatgptText, setChatgptText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
@@ -66,7 +65,6 @@ const Demo: React.FC = () => {
               simli_faceid={avatar.simli_faceid}
               elevenlabs_voiceid={avatar.elevenlabs_voiceid}
               initialPrompt={avatar.initialPrompt}
-              chatgptText={chatgptText}
               audioStream={audioStream}
             />
             <button

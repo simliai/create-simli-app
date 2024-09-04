@@ -14,7 +14,6 @@ export interface Avatar {
     simli_faceid: string;
     elevenlabs_voiceid: string;
     initialPrompt: string;
-    chatgptText: string;
     audioStream: MediaStream | null;
   }
   
