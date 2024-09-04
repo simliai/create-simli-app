@@ -160,7 +160,7 @@ async function promptLLM(ws,initialPrompt, prompt, voiceId, connectionId) {
       ],
       model: "llama3-8b-8192",
       temperature: 1,
-      max_tokens: 75,
+      max_tokens: 50,
       top_p: 1,
       stream: true,
       stop: null

@@ -19,7 +19,7 @@ const avatar = {
     name: "Chrystal",
     simli_faceid: "b7da5ed1-2abc-47c8-b7a6-0b018e031a26",
     elevenlabs_voiceid: "cgSgspJ2msm6clMCkdW9",
-    initialPrompt: "You are the template avatar for Create-Simli-App. Start welcome to Simli and that they can start building their interactive app now. Guide people to the discord/docs. Keep it short.",
+    initialPrompt: "You are the template avatar for Simli. Start with friendly welcome to Simli and that they can start building their interactive app now. Guide people to the discord or docs. Keep it below 50 tokens.",
 }
 
 const Demo: React.FC = () => {
