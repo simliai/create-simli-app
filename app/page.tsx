@@ -53,9 +53,11 @@ const Demo: React.FC = () => {
   
   return (
     <div className="bg-black min-h-screen flex flex-col items-center font-mono text-white p-8">
-      <h2> Create Simli App </h2>
       <SimliHeaderLogo/>
       <Navbar/>
+      <div className="absolute top-[32px] right-[32px]">
+        <text className="font-bold mb-8 text-2xl leading-8">Create Simli App</text>
+      </div>
         <div className="flex flex-col items-center gap-6 bg-effect15White p-6 rounded-xl w-full">
           <div>
             <h2 className="text-2xl font-bold mb-4"></h2>
@@ -69,11 +71,13 @@ const Demo: React.FC = () => {
             />
           </div>
         </div>
+
       <div className="max-w-[350px] flex flex-col items-center gap-6 my-16">
-      Create Simli App is a starter repo for creating an interactive app with Simli. 
-
-        <ol className="list-decimal mt-4 pt-4 pb-4 mb-4"> 
-
+      <b>Create Simli App is a starter repo for creating an interactive app with Simli.</b>
+      <div>
+      
+      </div>
+        <ol className="list-decimal"> 
           <li>
           Fill in your API keys in the .env file.
           </li>
