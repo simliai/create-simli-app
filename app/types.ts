@@ -15,7 +15,6 @@ export interface Avatar {
     elevenlabs_voiceid: string;
     initialPrompt: string;
     chatgptText: string;
-    onChatGPTTextChange: (newText: string) => void;
     audioStream: MediaStream | null;
   }
   

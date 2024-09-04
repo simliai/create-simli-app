@@ -30,10 +30,6 @@ const Demo: React.FC = () => {
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
 
-  const handleChatGPTTextChange = useCallback((newText: string) => {
-    console.log('Updating chatgptText:', newText);
-    setChatgptText(newText);
-  }, []);
 
   const startRecording = useCallback(async () => {
     try {
@@ -71,7 +67,6 @@ const Demo: React.FC = () => {
               elevenlabs_voiceid={avatar.elevenlabs_voiceid}
               initialPrompt={avatar.initialPrompt}
               chatgptText={chatgptText}
-              onChatGPTTextChange={handleChatGPTTextChange}
               audioStream={audioStream}
             />
             <button
