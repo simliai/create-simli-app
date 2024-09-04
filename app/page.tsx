@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import AvatarInteraction from './AvatarInteraction';
+import DottedFace from './DottedFace';
 import SimliHeaderLogo from './Logo';
 import Navbar from './Navbar';
 import { Avatar } from './types';
@@ -34,6 +35,7 @@ const Demo: React.FC = () => {
         <div className="w-full max-w-2xl flex flex-col items-center gap-6">
           <div className="bg-effect15White p-6 rounded-xl w-full">
             <h2 className="text-2xl font-bold mb-4"></h2>
+            <DottedFace/>
             <AvatarInteraction
               simli_faceid={avatar.simli_faceid}
               elevenlabs_voiceid={avatar.elevenlabs_voiceid}
