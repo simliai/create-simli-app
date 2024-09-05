@@ -42,7 +42,7 @@ const Demo: React.FC = () => {
       <SimliHeaderLogo />
       <Navbar />
       <div className="absolute top-[32px] right-[32px]">
-        <text className="font-bold mb-8 text-2xl leading-8">Create Simli App</text>
+        <text className="font-bold mb-8 text-xl leading-8">Create Streaming Avatar App</text>
       </div>
       <div className="flex flex-col items-center gap-6 bg-effect15White p-6 pb-[40px] rounded-xl w-full">
         <div>

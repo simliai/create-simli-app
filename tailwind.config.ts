@@ -14,12 +14,15 @@ const config: Config = {
       black: colors.black,
       white: colors.white,
       gray: colors.gray,
+      neutral: colors.neutral,
+      zinc: colors.zinc,
       emerald: colors.emerald,
       indigo: colors.indigo,
       yellow: colors.yellow,
       blue: colors.blue,
       red: colors.red,
-      simliblue: '#0000ff'
+      simliblue: '#0000ff',
+      simligray: '#111111'
     }, 
     extend: {
       fontFamily: {
