@@ -210,7 +210,9 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
             onClick={handleCancel}
             className="w-full mt-4 bg-red-600 text-white py-3 justify-center rounded-[100px] backdrop-blur transition-all duration-300 hover:rounded hover:bg-white hover:text-black hover:rounded-sm px-6"
             >
-            Stop
+            <span className="font-abc-repro-mono font-bold w-[164px]">
+              Stop
+            </span>
             </button>
           ) : (
             <button
@@ -218,7 +220,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
             disabled={isLoading}
             className="w-full mt-4 bg-simliblue text-white py-3 px-6 rounded-[100px] transition-all duration-300 hover:text-black hover:bg-white hover:rounded-sm"
             >
-              <span className="font-bold w-[164px]">
+              <span className="font-abc-repro-mono font-bold w-[164px]">
               Test interaction
               </span>
             </button>
