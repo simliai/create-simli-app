@@ -1,21 +1,6 @@
 import localFont from 'next/font/local'
 
-export const abcReproMono = localFont({
-  src: [
-    {
-      path: 'fonts/ABCReproMono-Regular.woff',
-      weight: '400',
-      style: 'normal',
-    },
-    {
-      path: 'fonts/ABCReproMono-Bold.woff',
-      weight: '800',
-      style: 'normal',
-    },
-  ],
-  variable: '--font-abc-repro-mono'
-})
-
+// Regular font 
 export const abcRepro = localFont({
   src: [
     {
@@ -30,4 +15,21 @@ export const abcRepro = localFont({
     },
   ],
   variable: '--font-abc-repro'
+})
+
+// Mono font
+export const abcReproMono = localFont({
+  src: [
+    {
+      path: 'fonts/ABCReproMono-Regular.woff',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: 'fonts/ABCReproMono-Bold.woff',
+      weight: '800',
+      style: 'normal',
+    },
+  ],
+  variable: '--font-abc-repro-mono'
 })
