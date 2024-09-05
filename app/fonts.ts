@@ -9,7 +9,7 @@ export const abcReproMono = localFont({
     },
     {
       path: 'fonts/ABCReproMono-Bold.woff',
-      weight: '700',
+      weight: '800',
       style: 'normal',
     },
   ],
@@ -26,7 +26,7 @@ export const abcRepro = localFont({
     {
       path: 'fonts/ABCRepro-Bold.woff',
       weight: '700',
-      style: 'normal',
+      style: 'bold',
     },
   ],
   variable: '--font-abc-repro'

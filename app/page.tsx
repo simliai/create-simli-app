@@ -37,7 +37,6 @@ const Demo: React.FC = () => {
     setShowDottedFace(false);
   };
 
-
   return (
     <div className="bg-black min-h-screen flex flex-col items-center font-abc-repro text-white p-8">
       <SimliHeaderLogo />
@@ -59,9 +58,9 @@ const Demo: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-[350px] flex flex-col items-center ">
-        <span className="font-bold mb-[16px]"> Create Simli App is a starter repo for creating an interactive app with Simli. </span>
-        <ul className="list-decimal list-inside max-w-[350px] ml-[6px] mt-2">
+      <div className="max-w-[350px] font-thin flex flex-col items-center ">
+        <span className="font-bold mb-[8px] text-sm leading-5 "> Create Simli App is a starter repo for creating an interactive app with Simli. </span>
+        <ul className="list-decimal list-inside max-w-[350px] text-sm ml-[6px] mt-2">
           <li className="mb-1">
             Fill in your API keys in the .env file.
           </li>
@@ -72,7 +71,7 @@ const Demo: React.FC = () => {
             You can replace the avatar's face and voice and initial prompt with your own. Do this by editing <code>app/page.tsx</code>.
           </li>
         </ul>
-        <span className="mt-[16px]">You can now deploy this app to Vercel, or incorporate it as part of your existing project.</span>
+        <span className="font-thin text-sm mt-[16px]">You can now deploy this app to Vercel, or incorporate it as part of your existing project.</span>
 
         {/*  <p>You can replace the character by <a href="https://simli.com">creating your own</a> or finding one that you like in the <a href="https://docs.simli.com">docs</a>.</p> */}
       </div>
