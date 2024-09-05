@@ -8,19 +8,22 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    colors : {
+    colors: {
       transparent: 'transparent',
       current: 'currentColor',
       black: colors.black,
       white: colors.white,
       gray: colors.gray,
+      neutral: colors.neutral,
+      zinc: colors.zinc,
       emerald: colors.emerald,
       indigo: colors.indigo,
       yellow: colors.yellow,
       blue: colors.blue,
       red: colors.red,
-      simliblue: '#0000ff'
-    }, 
+      simliblue: '#0000ff',
+      simligray: '#111111'
+    },
     extend: {
       fontFamily: {
         'abc-repro-mono': ['var(--font-abc-repro-mono)'],

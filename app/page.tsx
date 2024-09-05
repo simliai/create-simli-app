@@ -37,15 +37,30 @@ const Demo: React.FC = () => {
     setShowDottedFace(false);
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
+      setIsRecording(true);
+      const audioData = new Uint8Array(6000).fill(0);
+      simliClientRef.current?.sendAudioData(audioData);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      setError('Error accessing microphone. Please check your permissions.');
+    }
+  }
+
+
   return (
-    <div className="bg-black min-h-screen flex flex-col items-center font-abc-repro font-normal text-sm text-white p-8">
+    <div className="bg-black min-h-screen flex flex-col items-center font-mono text-white p-8">
       <SimliHeaderLogo />
       <Navbar />
       <div className="absolute top-[32px] right-[32px]">
-        <text className="font-bold mb-8 text-2xl leading-8">Create Simli App</text>
+        <text className="font-bold mb-8 text-xl leading-8">Create Simli App</text>
       </div>
-      <div className="flex flex-col items-center gap-6 bg-effect15White p-6 pb-[40px] rounded-xl w-full">
+      <div className="flex flex-col items-center gap-6 bg-effect15White p-6 rounded-xl w-full">
         <div>
+          <h2 className="text-2xl font-bold mb-4"></h2>
           {showDottedFace && <DottedFace />}
           <AvatarInteraction
             simli_faceid={avatar.simli_faceid}
@@ -57,21 +72,23 @@ const Demo: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-[350px] font-thin flex flex-col items-center ">
-        <span className="font-bold mb-[8px] leading-5 "> Create Simli App is a starter repo for creating an interactive app with Simli. </span>
-        <ul className="list-decimal list-inside max-w-[350px] ml-[6px] mt-2">
-          <li className="mb-1">
+      <div className="max-w-[350px] flex flex-col items-center gap-6 my-16">
+        <b>Create Simli App is a starter repo for creating an interactive app with Simli.</b>
+        <div>
+
+        </div>
+        <ol className="list-decimal">
+          <li>
             Fill in your API keys in the .env file.
           </li>
-          <li className="mb-1">
+          <li>
             Test out the interaction and have a conversation with our default avatar.
           </li>
-          <li className="mb-1">
+          <li>
             You can replace the avatar's face and voice and initial prompt with your own. Do this by editing <code>app/page.tsx</code>.
           </li>
-        </ul>
-        <span className=" mt-[16px]">You can now deploy this app to Vercel, or incorporate it as part of your existing project.</span>
-
+        </ol>
+        You can now deploy this app to Vercel, or incorporate it as part of your existing project.
         {/*  <p>You can replace the character by <a href="https://simli.com">creating your own</a> or finding one that you like in the <a href="https://docs.simli.com">docs</a>.</p> */}
       </div>
       {error && <p className="mt-6 text-red-500 bg-red-100 border border-red-400 rounded p-3">{error}</p>}
