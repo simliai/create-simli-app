@@ -1,7 +1,7 @@
 
 export default function VideoBox(props: any) {
     return (
-        <div className="aspect-video flex items-center h-350 w-350 justify-center">
+        <div className="aspect-video flex items-center h-[350px] w-[350px] justify-center">
             <video ref={props.video} autoPlay playsInline></video>
             <audio ref={props.audio} autoPlay ></audio>
         </div>
