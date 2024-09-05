@@ -38,7 +38,7 @@ const Demo: React.FC = () => {
   };
 
   return (
-    <div className="bg-black min-h-screen flex flex-col items-center font-abc-repro text-sm text-white p-8">
+    <div className="bg-black min-h-screen flex flex-col items-center font-abc-repro font-normal text-sm text-white p-8">
       <SimliHeaderLogo />
       <Navbar />
       <div className="absolute top-[32px] right-[32px]">
