@@ -218,7 +218,9 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
             disabled={isLoading}
             className="w-full mt-4 bg-simliblue text-white py-3 px-6 rounded-[100px] transition-all duration-300 hover:text-black hover:bg-white hover:rounded-sm"
             >
-            Test interaction
+              <span className="font-bold w-[164px]">
+              Test interaction
+              </span>
             </button>
           )}
       </div>

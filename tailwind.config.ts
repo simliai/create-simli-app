@@ -22,6 +22,10 @@ const config: Config = {
       simliblue: '#0000ff'
     }, 
     extend: {
+      fontFamily: {
+        'abc-repro-mono': ['var(--font-abc-repro-mono)'],
+        'abc-repro': ['var(--font-abc-repro)'],
+      },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic":
