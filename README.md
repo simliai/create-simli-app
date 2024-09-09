@@ -6,9 +6,9 @@ The project consists of a Next.js app that uses the Simli SDK (`simli-client`) a
 Start by signing up and getting your API key from [Simli.com](https://www.simli.com/). Then, fill in the `.env` file in the root of the project and put in the following environment variables:
 
 ```bash
-SIMLI_API_KEY="API key from simli.com"
-ELEVENLABS_API_KEY="API key from elevenlabs.io"
-DEEPGRAM_API_KEY="API key from deepgram.com"
+NEXT_PUBLIC_SIMLI_API_KEY="API key from simli.com"
+NEXT_PUBLIC_ELEVENLABS_API_KEY="API key from elevenlabs.io"
+NEXT_PUBLIC_DEEPGRAM_API_KEY="API key from deepgram.com"
 GROQ_API_KEY="API key from groq.com"
 ```
 

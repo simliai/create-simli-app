@@ -13,14 +13,15 @@ app.use(express.json());
 const server = http.createServer(app);
 
 const { createClient, LiveTranscriptionEvents } = require("@deepgram/sdk");
-const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
+const deepgramClient = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
 
 const Groq = require('groq-sdk');
 const groq = new Groq(process.env.GROQ_API_KEY);
 
-console.log("Deepgram API key:", process.env.DEEPGRAM_API_KEY ? `Set` : "Not set");
-console.log("Groq API key:", process.env.GROQ_API_KEY ? `Set` : "Not set");
-console.log("ElevenLabs API key:", process.env.ELEVENLABS_API_KEY ? "Set" : "Not set");
+console.log("Deepgram API key:", process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY ? `Set:${process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY}` : "Not set");
+console.log("Groq API key:", process.env.GROQ_API_KEY ? `Set:${process.env.GROQ_API_KEY}` : "Not set");
+console.log("ElevenLabs API key:", process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY ? `Set:${process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY}` : "Not set");
+console.log("Simli API key:", process.env.NEXT_PUBLIC_SIMLI_API_KEY ? `Set:${process.env.NEXT_PUBLIC_SIMLI_API_KEY}` : "Not set");
 
 // Connection manager to keep track of active connections
 const connections = new Map();
@@ -214,7 +215,7 @@ async function startElevenLabsStreaming(ws, voiceId, connectionId) {
           stability: 0.5,
           similarity_boost: 0.5
         },
-        xi_api_key: process.env.ELEVENLABS_API_KEY,
+        xi_api_key: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY,
       };
       elevenLabsWs.send(JSON.stringify(initialMessage));
       resolve(elevenLabsWs);

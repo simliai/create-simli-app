@@ -48,7 +48,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   const initializeSimliClient = useCallback(() => {
     if (videoRef.current && audioRef.current) {
       const SimliConfig = {
-        apiKey: process.env.SIMLI_API_KEY,
+        apiKey: process.env.NEXT_PUBLIC_SIMLI_API_KEY,
         faceID: simli_faceid,
         handleSilence: true,
         videoRef: videoRef,
