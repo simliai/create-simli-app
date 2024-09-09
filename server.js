@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const axios = require("axios");
 const url = require('url'); 
 dotenv.config();
+dotenv.config({ path: `.env.local`, override: true });
 
 const app = express();
 const cors = require('cors');

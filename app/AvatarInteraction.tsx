@@ -229,12 +229,13 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
 
         ) : (
           <button
-            className="w-full mt-4 bg-zinc-700 text-white py-3 justify-center rounded-[100px] backdrop-blur transition-all duration-300 hover:rounded hover:bg-white hover:text-black hover:rounded-sm px-6"
-          >
-            <span className="font-abc-repro-mono font-bold w-[164px]">
-              Loading...
-            </span>
-          </button>
+          onClick={handleCancel}
+          className="w-full mt-4 bg-zinc-700 text-white py-3 justify-center rounded-[100px] backdrop-blur transition-all duration-300 hover:rounded hover:bg-white hover:text-black hover:rounded-sm px-6"
+        >
+          <span className="font-abc-repro-mono font-bold w-[164px]">
+            Loading...
+          </span>
+        </button>
         )}
       </div>
       {error && <p className="mt-4 text-red-500">{error}</p>}
