@@ -48,7 +48,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   const initializeSimliClient = useCallback(() => {
     if (videoRef.current && audioRef.current) {
       const SimliConfig = {
-        apiKey: process.env.NEXT_PUBLIC_SIMLI_API_KEY,
+        apiKey: process.env.SIMLI_API_KEY,
         faceID: simli_faceid,
         handleSilence: true,
         videoRef: videoRef,
@@ -214,7 +214,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
             className="w-full mt-4 bg-simliblue text-white py-3 px-6 rounded-[100px] transition-all duration-300 hover:text-black hover:bg-white hover:rounded-sm"
           >
             <span className="font-abc-repro-mono font-bold w-[164px]">
-              Test interaction
+              Test Interaction
             </span>
           </button>
         ) : isAvatarVisible ? (
