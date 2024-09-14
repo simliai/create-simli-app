@@ -12,7 +12,7 @@ NEXT_PUBLIC_DEEPGRAM_API_KEY="API key from deepgram.com"
 GROQ_API_KEY="API key from groq.com"
 ```
 
-If you want to try Simli but don't have API access to these third parties, ask in Discord and we can help you out with that ([Discord Link](discord.com)). 
+If you want to try Simli but don't have API access to these third parties, ask in Discord and we can help you out with that ([Discord Link](https://discord.gg/yQx49zNF4d)). 
 
 To run the back-end and front-end together, run the following command:
 
@@ -22,7 +22,7 @@ npm run start
 ```
 
 ### Characters
-You can swap out the character by finding one that you like in the [docs](docs.simli.com), or creating your own (coming soon!). 
+You can swap out the character by finding one that you like in the [docs](https://docs.simli.com/introduction), or creating your own (coming soon!). 
 
 ![alt text](media/image.png) ![alt text](media/image-4.png) ![alt text](media/image-2.png) ![alt text](media/image-3.png) ![alt text](media/image-5.png) ![alt text](media/image-6.png)
 
