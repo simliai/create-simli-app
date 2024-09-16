@@ -16,11 +16,11 @@ const server = http.createServer(app);
 const { createClient, LiveTranscriptionEvents } = require("@deepgram/sdk");
 const deepgramClient = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
 
-const Groq = require('groq-sdk');
-const groq = new Groq(process.env.GROQ_API_KEY);
+const OpenAI = require('openai');
+const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
 console.log("Deepgram API key:", process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY}` : "Not set");
-console.log("Groq API key:", process.env.GROQ_API_KEY ? `Set: ${process.env.GROQ_API_KEY}` : "Not set");
+console.log("OpenAI API key:", process.env.OPENAI_API_KEY ? `Set: ${process.env.OPENAI_API_KEY}` : "Not set");
 console.log("ElevenLabs API key:", process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY}` : "Not set");
 console.log("Simli API key:", process.env.NEXT_PUBLIC_SIMLI_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_SIMLI_API_KEY}` : "Not set");
 
@@ -147,9 +147,10 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
   connections.set(connectionId, { ...connections.get(connectionId), ws, deepgram });
 }
 
-async function promptLLM(ws,initialPrompt, prompt, voiceId, connectionId) {
+async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
   try {
-    const chatCompletion = await groq.chat.completions.create({
+    const stream = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       messages: [
         {
           role: 'assistant',
@@ -160,18 +161,16 @@ async function promptLLM(ws,initialPrompt, prompt, voiceId, connectionId) {
           content: prompt
         }
       ],
-      model: "llama3-8b-8192",
       temperature: 1,
       max_tokens: 50,
       top_p: 1,
       stream: true,
-      stop: null
     });
 
     let fullResponse = '';
     let elevenLabsWs = null;
 
-    for await (const chunk of chatCompletion) {
+    for await (const chunk of stream) {
       if (!connections.has(connectionId)) {
         console.log(`LLM process stopped: Connection ${connectionId} no longer exists`);
         break;
