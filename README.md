@@ -9,7 +9,7 @@ Start by signing up and getting your API key from [Simli.com](https://www.simli.
 NEXT_PUBLIC_SIMLI_API_KEY="API key from simli.com"
 NEXT_PUBLIC_ELEVENLABS_API_KEY="API key from elevenlabs.io"
 NEXT_PUBLIC_DEEPGRAM_API_KEY="API key from deepgram.com"
-OPENAI_API_KEY="API key from groq.com"
+OPENAI_API_KEY="API key from OPENAI"
 ```
 
 If you want to try Simli but don't have API access to these third parties, ask in Discord and we can help you out with that ([Discord Link](discord.com)). 
