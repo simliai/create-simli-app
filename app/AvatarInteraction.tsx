@@ -9,6 +9,16 @@ interface AvatarInteractionProps {
   showDottedFace: boolean;
 }
 
+interface SimliClientConfig {
+  apiKey: string;
+  faceID: string;
+  handleSilence: boolean;
+  videoRef: React.RefObject<HTMLVideoElement>;
+  audioRef: React.RefObject<HTMLAudioElement>;
+}
+
+const simliClient = new SimliClient(); 
+
 const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   simli_faceid,
   elevenlabs_voiceid,
@@ -24,7 +34,6 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
-  const simliClientRef = useRef<SimliClient | null>(null);
   const textAreaRef = useRef<HTMLDivElement>(null);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -36,7 +45,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       setAudioStream(stream);
       setIsRecording(true);
       const audioData = new Uint8Array(6000).fill(0);
-      simliClientRef.current?.sendAudioData(audioData);
+      simliClient.sendAudioData(audioData);
     } catch (err) {
       console.error('Error accessing microphone:', err);
       setError('Error accessing microphone. Please check your permissions.');
@@ -47,16 +56,15 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   /* initializeSimliClient() initializes a new client if videoRef and audioRef are set */
   const initializeSimliClient = useCallback(() => {
     if (videoRef.current && audioRef.current) {
-      const SimliConfig = {
-        apiKey: process.env.NEXT_PUBLIC_SIMLI_API_KEY,
+      const SimliConfig: SimliClientConfig = {
+        apiKey: process.env.NEXT_PUBLIC_SIMLI_API_KEY || '',
         faceID: simli_faceid,
         handleSilence: true,
         videoRef: videoRef,
         audioRef: audioRef,
       };
 
-      simliClientRef.current = new SimliClient();
-      simliClientRef.current.Initialize(SimliConfig);
+      simliClient.Initialize(SimliConfig);
       console.log('Simli Client initialized');
     }
   }, []);
@@ -103,7 +111,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       if (event.data instanceof Blob) {
         event.data.arrayBuffer().then((arrayBuffer) => {
           const uint8Array = new Uint8Array(arrayBuffer);
-          simliClientRef.current?.sendAudioData(uint8Array);
+          simliClient.sendAudioData(uint8Array);
         });
       } else {
         const message = JSON.parse(event.data);
@@ -118,12 +126,12 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
 
   /* isWebRTCConnected() checks if SimliClient has an open data channel and peer-connection  */
   const isWebRTCConnected = useCallback(() => {
-    if (!simliClientRef.current) return false;
+    if (!simliClient) return false;
 
     // Access the private properties of SimliClient
     // Note: This is not ideal and breaks encapsulation, but it avoids modifying SimliClient
-    const pc = (simliClientRef.current as any).pc as RTCPeerConnection | null;
-    const dc = (simliClientRef.current as any).dc as RTCDataChannel | null;
+    const pc = (simliClient as any).pc as RTCPeerConnection | null;
+    const dc = (simliClient as any).dc as RTCDataChannel | null;
 
     return pc !== null &&
       pc.iceConnectionState === 'connected' &&
@@ -136,7 +144,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
     setStartWebRTC(false);
     setIsRecording(false);
     setAudioStream(null);
-    simliClientRef.current?.close();
+    simliClient.close();
     socketRef.current?.close();
     window.location.href = '/'; /* TODO: Is it bad practice to do this? Just sending user back to '/' */
   }, []);
@@ -150,7 +158,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
     console.log('Starting ElevenLabs conversation');
     await startConversation();
     console.log('Starting WebRTC');
-    simliClientRef.current?.start();
+    simliClient.start();
     setStartWebRTC(true);
 
     // Wait for the WebRTC connection to be established
@@ -159,7 +167,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
         setIsAvatarVisible(true);
         console.log('WebRTC connection established');
         const audioData = new Uint8Array(6000).fill(0);
-        simliClientRef.current?.sendAudioData(audioData);
+        simliClient.sendAudioData(audioData);
         console.log('Sent initial audio data');
       } else {
         console.log('Waiting for WebRTC connection...');
@@ -177,9 +185,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       if (socketRef.current) {
         socketRef.current.close();
       }
-      if (simliClientRef.current) {
-        simliClientRef.current.close();
-      }
+      simliClient.close();
     };
   }, [initializeSimliClient]);
 
