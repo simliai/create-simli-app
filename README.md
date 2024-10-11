@@ -7,7 +7,7 @@ Start by signing up and getting your API key from [Simli.com](https://www.simli.
 
 ```bash
 NEXT_PUBLIC_SIMLI_API_KEY="API key from simli.com"
-NEXT_PUBLIC_ELEVENLABS_API_KEY="API key from elevenlabs.io"
+NEXT_PUBLIC_ELEVENLABS_API_KEY="Paid API key from elevenlabs.io (Free API key doesn't allow streaming audio)"
 NEXT_PUBLIC_DEEPGRAM_API_KEY="API key from deepgram.com"
 OPENAI_API_KEY="API key from OPENAI"
 ```
@@ -28,7 +28,7 @@ You can swap out the character by finding one that you like in the [docs](https:
 
 ### Alternative STT, TTS and LLM providers 
 You can of course replace Deepgram and Elevenlabs with AI services with your own preference, or even build your own.
-The only requirement for Simli to work is that audio is sent using PCM16 format and 16KHz sample rate. If you're having trouble getting nice audio, feel free to ask for help in Discord.  
+The only requirement for Simli to work is that audio is sent using PCM16 format and 16KHz sample rate or sending it through MediaStream. If you're having trouble getting nice audio, feel free to ask for help in Discord.  
 
 ## Links
 [\[Simli\]](https://simli.com)   [\[Elevenlabs\]](https://elevenlabs.io) [\[Deepgram\]](https://deepgram.com)
