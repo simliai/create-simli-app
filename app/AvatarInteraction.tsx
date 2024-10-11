@@ -160,7 +160,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
     console.log('Starting WebRTC');
     simliClient.start();
     setStartWebRTC(true);
-
+    /*
     // Wait for the WebRTC connection to be established
     const checkConnection = async () => {
       if (isWebRTCConnected()) {
@@ -176,7 +176,20 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
     };
 
     setTimeout(checkConnection, 4000);  // Start checking after 4 seconds
+    */
   }, []);
+
+  useEffect(() => {
+    if(simliClient) {
+      simliClient.on('connected', () => {
+        console.log('SimliClient connected');
+        setIsAvatarVisible(true);
+        const audioData = new Uint8Array(6000).fill(0);
+        simliClient.sendAudioData(audioData);
+        console.log('Sent initial audio data');
+      });
+    }
+  }, [simliClient]);
 
   useEffect(() => {
     initializeSimliClient();
