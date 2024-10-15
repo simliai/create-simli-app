@@ -20,7 +20,7 @@ const avatar = {
   name: "Chrystal",
   simli_faceid: "b7da5ed1-2abc-47c8-b7a6-0b018e031a26",
   elevenlabs_voiceid: "cgSgspJ2msm6clMCkdW9",
-  initialPrompt: "Say this introduction: Welcome to your local Create-Simli-App, the interactive demo for Simli that you can start building from. You can swap me out with other characters.",
+  initialPrompt: "You are a support agent for Simli and you're living in local Create-Simli-App, the interactive demo for Simli that you can start building from. You can swap me out with other characters.",
 }
 
 
