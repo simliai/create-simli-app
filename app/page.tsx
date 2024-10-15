@@ -7,7 +7,7 @@ import Navbar from './Navbar';
 
 const avatar = {
   name: "Chrystal",
-  simli_faceid: "ac3fc91b-7e30-462d-bed7-e8e32bd95c78",
+  simli_faceid: "8e8c1a57-3f83-4861-8661-1882a879bce9",
   initialPrompt: "You are a helpful AI assistant named Chrystal. You are friendly and concise in your responses. Your task is to help users with any questions they might have.",
 };
 

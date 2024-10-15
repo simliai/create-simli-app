@@ -27,6 +27,7 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
   const currentResponseIdRef = useRef<string | null>(null);
   const lastPlayedSampleRef = useRef(0);
   const isAssistantSpeakingRef = useRef(false);
+  const shouldInterrupt = useRef(false);
   const audioBufferRef = useRef<Int16Array[]>([]);
   const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstChunkRef = useRef(true);
@@ -148,7 +149,6 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       isFirstChunkRef.current = true;  // Reset for the next response
     }
   }, []);
-  
 
   const handleResponseCreated = useCallback((event: any) => {
     console.log('Response created:', event);
