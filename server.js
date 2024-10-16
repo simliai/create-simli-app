@@ -3,12 +3,12 @@ const http = require("http");
 const WebSocket = require("ws");
 const dotenv = require("dotenv");
 const axios = require("axios");
-const url = require('url'); 
+const url = require("url");
 dotenv.config();
 dotenv.config({ path: `.env.local`, override: true });
 
 const app = express();
-const cors = require('cors');
+const cors = require("cors");
 app.use(cors());
 app.use(express.json());
 const server = http.createServer(app);
@@ -16,34 +16,57 @@ const server = http.createServer(app);
 const { createClient, LiveTranscriptionEvents } = require("@deepgram/sdk");
 const deepgramClient = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
 
-const OpenAI = require('openai');
-const openai = new OpenAI(process.env.OPENAI_API_KEY);
+const OpenAI = require("openai");
+const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
 
-console.log("Deepgram API key:", process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY}` : "Not set");
-console.log("OpenAI API key:", process.env.OPENAI_API_KEY ? `Set: ${process.env.OPENAI_API_KEY}` : "Not set");
-console.log("ElevenLabs API key:", process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY}` : "Not set");
-console.log("Simli API key:", process.env.NEXT_PUBLIC_SIMLI_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_SIMLI_API_KEY}` : "Not set");
+console.log(
+  "Deepgram API key:",
+  process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY
+    ? `Set: ${process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY}`
+    : "Not set"
+);
+console.log(
+  "OpenAI API key:",
+  process.env.NEXT_PUBLIC_OPENAI_API_KEY
+    ? `Set: ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`
+    : "Not set"
+);
+console.log(
+  "ElevenLabs API key:",
+  process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY
+    ? `Set: ${process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY}`
+    : "Not set"
+);
+console.log(
+  "Simli API key:",
+  process.env.NEXT_PUBLIC_SIMLI_API_KEY
+    ? `Set: ${process.env.NEXT_PUBLIC_SIMLI_API_KEY}`
+    : "Not set"
+);
 
 // Connection manager to keep track of active connections
 const connections = new Map();
 
-app.post('/start-conversation', (req, res) => {
+app.post("/start-conversation", (req, res) => {
   const { prompt, voiceId } = req.body;
   if (!prompt || !voiceId) {
-    return res.status(400).json({ error: 'Prompt and voiceId are required' });
+    return res.status(400).json({ error: "Prompt and voiceId are required" });
   }
 
   const connectionId = Date.now().toString();
   connections.set(connectionId, { prompt, voiceId });
-  res.json({ connectionId, message: 'Conversation started. Connect to WebSocket to continue.' });
+  res.json({
+    connectionId,
+    message: "Conversation started. Connect to WebSocket to continue.",
+  });
 });
 
 const wss = new WebSocket.Server({ noServer: true });
 
-server.on('upgrade', (request, socket, head) => {
+server.on("upgrade", (request, socket, head) => {
   const { pathname, query } = url.parse(request.url, true);
-  
-  if (pathname === '/ws') {
+
+  if (pathname === "/ws") {
     const connectionId = query.connectionId;
     if (!connectionId || !connections.has(connectionId)) {
       socket.destroy();
@@ -72,7 +95,7 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
     no_delay: true,
     interim_results: true,
     endpointing: 300,
-    utterance_end_ms: 1000
+    utterance_end_ms: 1000,
   });
 
   deepgram.addListener(LiveTranscriptionEvents.Open, () => {
@@ -91,14 +114,20 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
         if (data.speech_final) {
           const utterance = is_finals.join(" ");
           is_finals = [];
-          console.log(`Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`);
-          
+          console.log(
+            `Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`
+          );
+
           promptLLM(ws, initialPrompt, utterance, voiceId, connectionId);
         } else {
-          console.log(`Deepgram STT: [Is Final] ${transcript} (ID: ${connectionId})`);
+          console.log(
+            `Deepgram STT: [Is Final] ${transcript} (ID: ${connectionId})`
+          );
         }
       } else {
-        console.log(`Deepgram STT: [Interim Result] ${transcript} (ID: ${connectionId})`);
+        console.log(
+          `Deepgram STT: [Interim Result] ${transcript} (ID: ${connectionId})`
+        );
       }
     }
   });
@@ -107,7 +136,9 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
     if (is_finals.length > 0) {
       const utterance = is_finals.join(" ");
       is_finals = [];
-      console.log(`Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`);
+      console.log(
+        `Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`
+      );
       promptLLM(ws, utterance, voiceId, connectionId);
     }
   });
@@ -123,12 +154,19 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
   });
 
   ws.on("message", (message) => {
-    console.log(`WebSocket: Client data received (ID: ${connectionId})`, typeof message, message.length, "bytes");
+    console.log(
+      `WebSocket: Client data received (ID: ${connectionId})`,
+      typeof message,
+      message.length,
+      "bytes"
+    );
 
     if (deepgram.getReadyState() === 1) {
       deepgram.send(message);
     } else {
-      console.log(`WebSocket: Data queued for Deepgram. Current state: ${deepgram.getReadyState()} (ID: ${connectionId})`);
+      console.log(
+        `WebSocket: Data queued for Deepgram. Current state: ${deepgram.getReadyState()} (ID: ${connectionId})`
+      );
       audioQueue.push(message);
     }
   });
@@ -144,7 +182,11 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
     deepgram.keepAlive();
   }, 10 * 1000);
 
-  connections.set(connectionId, { ...connections.get(connectionId), ws, deepgram });
+  connections.set(connectionId, {
+    ...connections.get(connectionId),
+    ws,
+    deepgram,
+  });
 }
 
 async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
@@ -153,13 +195,13 @@ async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
       model: "gpt-4o-mini",
       messages: [
         {
-          role: 'assistant',
-          content: initialPrompt
+          role: "assistant",
+          content: initialPrompt,
         },
         {
-          role: 'user',
-          content: prompt
-        }
+          role: "user",
+          content: prompt,
+        },
       ],
       temperature: 1,
       max_tokens: 50,
@@ -167,22 +209,28 @@ async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
       stream: true,
     });
 
-    let fullResponse = '';
+    let fullResponse = "";
     let elevenLabsWs = null;
 
     for await (const chunk of stream) {
       if (!connections.has(connectionId)) {
-        console.log(`LLM process stopped: Connection ${connectionId} no longer exists`);
+        console.log(
+          `LLM process stopped: Connection ${connectionId} no longer exists`
+        );
         break;
       }
 
-      const chunkMessage = chunk.choices[0]?.delta?.content || '';
+      const chunkMessage = chunk.choices[0]?.delta?.content || "";
       fullResponse += chunkMessage;
 
-      ws.send(JSON.stringify({ type: 'text', content: chunkMessage }));
+      ws.send(JSON.stringify({ type: "text", content: chunkMessage }));
 
       if (!elevenLabsWs && fullResponse.length > 0) {
-        elevenLabsWs = await startElevenLabsStreaming(ws, voiceId, connectionId);
+        elevenLabsWs = await startElevenLabsStreaming(
+          ws,
+          voiceId,
+          connectionId
+        );
       }
 
       if (elevenLabsWs && chunkMessage) {
@@ -195,9 +243,10 @@ async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
     }
 
     if (elevenLabsWs) {
-      elevenLabsWs.send(JSON.stringify({ text: "", try_trigger_generation: true }));
+      elevenLabsWs.send(
+        JSON.stringify({ text: "", try_trigger_generation: true })
+      );
     }
-
   } catch (error) {
     console.error(`Error in promptLLM (ID: ${connectionId}):`, error);
   }
@@ -205,15 +254,17 @@ async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
 
 async function startElevenLabsStreaming(ws, voiceId, connectionId) {
   return new Promise((resolve, reject) => {
-    const elevenLabsWs = new WebSocket(`wss://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream-input?model_id=eleven_turbo_v2_5&output_format=pcm_16000`);
+    const elevenLabsWs = new WebSocket(
+      `wss://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream-input?model_id=eleven_turbo_v2_5&output_format=pcm_16000`
+    );
 
-    elevenLabsWs.on('open', () => {
+    elevenLabsWs.on("open", () => {
       console.log(`Connected to ElevenLabs WebSocket (ID: ${connectionId})`);
       const initialMessage = {
-        text: " ", 
+        text: " ",
         voice_settings: {
           stability: 0.5,
-          similarity_boost: 0.5
+          similarity_boost: 0.5,
         },
         xi_api_key: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY,
       };
@@ -221,16 +272,18 @@ async function startElevenLabsStreaming(ws, voiceId, connectionId) {
       resolve(elevenLabsWs);
     });
 
-    elevenLabsWs.on('message', (data) => {
+    elevenLabsWs.on("message", (data) => {
       if (!connections.has(connectionId)) {
-        console.log(`ElevenLabs process stopped: Connection ${connectionId} no longer exists`);
+        console.log(
+          `ElevenLabs process stopped: Connection ${connectionId} no longer exists`
+        );
         elevenLabsWs.close();
         return;
       }
 
       const message = JSON.parse(data);
       if (message.audio) {
-        const audioData = Buffer.from(message.audio, 'base64');
+        const audioData = Buffer.from(message.audio, "base64");
         const chunkSize = 5 * 1024; // 5KB
         let i = 0;
         while (i < audioData.length) {
@@ -245,12 +298,12 @@ async function startElevenLabsStreaming(ws, voiceId, connectionId) {
       }
     });
 
-    elevenLabsWs.on('error', (error) => {
+    elevenLabsWs.on("error", (error) => {
       console.error(`ElevenLabs WebSocket error (ID: ${connectionId}):`, error);
       reject(error);
     });
 
-    elevenLabsWs.on('close', () => {
+    elevenLabsWs.on("close", () => {
       console.log(`ElevenLabs WebSocket closed (ID: ${connectionId})`);
     });
   });

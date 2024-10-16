@@ -6,9 +6,9 @@ import SimliHeaderLogo from './Logo';
 import Navbar from './Navbar';
 
 const avatar = {
-  name: "Chrystal",
-  simli_faceid: "8e8c1a57-3f83-4861-8661-1882a879bce9",
-  initialPrompt: "You are a helpful AI assistant named Chrystal. You are friendly and concise in your responses. Your task is to help users with any questions they might have.",
+  name: "Frank",
+  simli_faceid: "5514e24d-6086-46a3-ace4-6a7264e5cb7c",
+  initialPrompt: "You are a helpful AI assistant named Frank. You are friendly and concise in your responses. Your task is to help users with any questions they might have.",
 };
 
 const Demo: React.FC = () => {

@@ -16,9 +16,12 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
   onStart,
   showDottedFace
 }) => {
+  // State management
   const [isLoading, setIsLoading] = useState(false);
   const [isAvatarVisible, setIsAvatarVisible] = useState(false);
   const [error, setError] = useState('');
+
+  // Refs for various components and states
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const simliClientRef = useRef<SimliClient | null>(null);
@@ -27,11 +30,20 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
   const currentResponseIdRef = useRef<string | null>(null);
   const lastPlayedSampleRef = useRef(0);
   const isAssistantSpeakingRef = useRef(false);
-  const shouldInterrupt = useRef(false);
   const audioBufferRef = useRef<Int16Array[]>([]);
   const audioTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstChunkRef = useRef(true);
 
+  // New state for audio threshold
+  const [audioThreshold, setAudioThreshold] = useState(0.1);
+  
+  // New ref for tracking continuous frames above threshold
+  const framesAboveThresholdRef = useRef(0);
+  const FRAMES_TO_TRIGGER_INTERRUPT = 5; // Number of consecutive frames above threshold to trigger interruption
+
+  /**
+   * Initializes the Simli client with the provided configuration.
+   */
   const initializeSimliClient = useCallback(() => {
     if (videoRef.current && audioRef.current) {
       const SimliConfig = {
@@ -43,11 +55,14 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       };
 
       simliClientRef.current = new SimliClient();
-      simliClientRef.current.Initialize(SimliConfig);
+      simliClientRef.current.Initialize(SimliConfig as any);
       console.log('Simli Client initialized');
     }
   }, [simli_faceid]);
 
+  /**
+   * Initializes the OpenAI client, sets up event listeners, and connects to the API.
+   */
   const initializeOpenAIClient = useCallback(async () => {
     try {
       console.log('Initializing OpenAI client...');
@@ -55,21 +70,15 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
         apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
         dangerouslyAllowAPIKeyInBrowser: true,
       });
-      console.log('OpenAI client instance created');
 
-      console.log('Updating session...');
       await openAIClientRef.current.updateSession({
         instructions: initialPrompt,
-        voice: 'alloy',
+        voice: 'echo',
         turn_detection: { type: 'server_vad' },
         input_audio_transcription: { model: 'whisper-1' },
       });
-      console.log('Session updated');
 
-      openAIClientRef.current.on('*', (event: any) => {
-        console.log('OpenAI event:', event);
-      });
-
+      // Set up event listeners
       openAIClientRef.current.on('conversation.updated', handleConversationUpdate);
       openAIClientRef.current.on('response.created', handleResponseCreated);
       openAIClientRef.current.on('response.audio.delta', handleAudioDelta);
@@ -78,11 +87,10 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       openAIClientRef.current.on('input_audio_buffer.speech_stopped', handleSpeechStopped);
       openAIClientRef.current.on('response.canceled', handleResponseCanceled);
 
-      console.log('Connecting to OpenAI...');
       await openAIClientRef.current.connect();
       console.log('OpenAI Client connected successfully');
 
-      console.log('Dispatching test event...');
+      // Dispatch a test event
       openAIClientRef.current.dispatch('conversation.item.create', {
         item: {
           type: 'message',
@@ -91,12 +99,15 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
         }
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error initializing OpenAI client:', error);
       setError(`Failed to initialize OpenAI client: ${error.message}`);
     }
   }, [initialPrompt]);
 
+  /**
+   * Handles conversation updates, including user and assistant messages.
+   */
   const handleConversationUpdate = useCallback((event: any) => {
     console.log('Conversation updated:', event);
     const { item, delta } = event;
@@ -105,8 +116,6 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       console.log('User speech detected');
       if (isAssistantSpeakingRef.current) {
         console.log('Attempting to interrupt assistant');
-        console.log('isAssistantSpeaking:', isAssistantSpeakingRef.current);
-        console.log('currentResponseId:', currentResponseIdRef.current);
         handleSpeechStarted();
       }
     } else if (item.type === 'message' && item.role === 'assistant') {
@@ -115,7 +124,7 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       if (delta && delta.audio) {
         const downsampledAudio = downsampleAudio(delta.audio, 24000, 16000);
         if (isFirstChunkRef.current) {
-          simliClientRef.current?.sendAudioData(downsampledAudio);
+          simliClientRef.current?.sendAudioData(downsampledAudio as any);
           console.log('Sent first audio chunk to Simli immediately:', downsampledAudio.length);
           isFirstChunkRef.current = false;
           scheduleNextAudioChunk();
@@ -126,6 +135,9 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
     }
   }, []);
 
+  /**
+   * Schedules the next audio chunk to be sent to Simli.
+   */
   const scheduleNextAudioChunk = useCallback(() => {
     if (audioTimeoutRef.current) {
       clearTimeout(audioTimeoutRef.current);
@@ -134,37 +146,43 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
     if (audioBufferRef.current.length > 0) {
       const audioChunk = audioBufferRef.current.shift();
       if (audioChunk) {
-        simliClientRef.current?.sendAudioData(audioChunk);
+        simliClientRef.current?.sendAudioData(audioChunk as any);
         console.log('Sent audio chunk to Simli:', audioChunk.length);
   
-        // Calculate the delay based on chunk size and sample rate
-        const chunkDurationMs = (audioChunk.length / 16000) * 1000;  // Convert samples to milliseconds
-        const adjustedDelay = Math.min(chunkDurationMs, 250);  // Limit delay to a maximum of 250ms to avoid long waits
+        const chunkDurationMs = (audioChunk.length / 16000) * 1000;
+        const adjustedDelay = Math.min(chunkDurationMs, 250);
   
         audioTimeoutRef.current = setTimeout(() => {
           scheduleNextAudioChunk();
         }, adjustedDelay);
       }
     } else {
-      isFirstChunkRef.current = true;  // Reset for the next response
+      isFirstChunkRef.current = true;
     }
   }, []);
 
+  /**
+   * Handles the creation of a new response from the assistant.
+   */
   const handleResponseCreated = useCallback((event: any) => {
     console.log('Response created:', event);
     currentResponseIdRef.current = event.response.id;
     lastPlayedSampleRef.current = 0;
     isAssistantSpeakingRef.current = true;
     isFirstChunkRef.current = true;
-    console.log('Set isAssistantSpeaking to true');
-    console.log('Set currentResponseId to:', event.response.id);
   }, []);
 
+  /**
+   * Handles audio delta events from the OpenAI API.
+   */
   const handleAudioDelta = useCallback((event: any) => {
     console.log('Audio delta received:', event);
     lastPlayedSampleRef.current += event.delta.audio.length;
   }, []);
 
+  /**
+   * Handles the completion of an assistant's response.
+   */
   const handleResponseDone = useCallback(() => {
     console.log('Response done');
     isAssistantSpeakingRef.current = false;
@@ -174,44 +192,49 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
     if (audioTimeoutRef.current) {
       clearTimeout(audioTimeoutRef.current);
     }
-    console.log('Set isAssistantSpeaking to false');
-    console.log('Cleared currentResponseId');
   }, []);
 
+  /**
+   * Handles the start of user speech, potentially interrupting the assistant.
+   */
   const handleSpeechStarted = useCallback(() => {
     console.log('Speech started event received');
     console.log('isAssistantSpeaking:', isAssistantSpeakingRef.current);
     console.log('currentResponseId:', currentResponseIdRef.current);
   
+    console.log('Interrupting assistant');
+    
+    audioBufferRef.current = [];
+    console.log('Cleared audio buffer.');
 
-      console.log('Interrupting assistant');
-      
-      // Clear our audio buffer instead of calling simliClientRef.current?.clearAudioBuffer()
-      audioBufferRef.current = [];
-      console.log('Cleared audio buffer.');
-  
-      openAIClientRef.current?.dispatch('response.cancel', {
-        response_id: currentResponseIdRef.current
-      });
-      console.log('Cancelling AI speech from the server.');
-  
-      openAIClientRef.current?.dispatch('output_audio_buffer.clear');
-      console.log('Cleared OpenAI output audio buffer.');
-  
-      isAssistantSpeakingRef.current = false;
-      currentResponseIdRef.current = null;
-      lastPlayedSampleRef.current = 0;
-      isFirstChunkRef.current = true;
-      if (audioTimeoutRef.current) {
-        clearTimeout(audioTimeoutRef.current);
-      }
-      console.log('Reset all states after interruption');
+    openAIClientRef.current?.dispatch('response.cancel', {
+      response_id: currentResponseIdRef.current
+    });
+    console.log('Cancelling AI speech from the server.');
+
+    openAIClientRef.current?.dispatch('output_audio_buffer.clear', {});
+    console.log('Cleared OpenAI output audio buffer.');
+
+    isAssistantSpeakingRef.current = false;
+    currentResponseIdRef.current = null;
+    lastPlayedSampleRef.current = 0;
+    isFirstChunkRef.current = true;
+    if (audioTimeoutRef.current) {
+      clearTimeout(audioTimeoutRef.current);
+    }
+    console.log('Reset all states after interruption');
   }, []);
 
+  /**
+   * Handles the end of user speech.
+   */
   const handleSpeechStopped = useCallback((event: any) => {
     console.log('Speech stopped event received', event);
   }, []);
 
+  /**
+   * Handles the cancellation of an assistant's response.
+   */
   const handleResponseCanceled = useCallback((event: any) => {
     console.log('Response canceled:', event);
     isAssistantSpeakingRef.current = false;
@@ -225,6 +248,9 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
     console.log('Reset all states after response cancellation');
   }, []);
 
+  /**
+   * Downsamples audio data from one sample rate to another.
+   */
   const downsampleAudio = (audioData: Int16Array, inputSampleRate: number, outputSampleRate: number): Int16Array => {
     if (inputSampleRate === outputSampleRate) {
       return audioData;
@@ -242,6 +268,9 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
     return result;
   };
 
+  /**
+   * Starts audio recording from the user's microphone.
+   */
   const startRecording = useCallback(async () => {
     try {
       console.log('Starting audio recording...');
@@ -260,6 +289,19 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
         
         const audioLevel = Math.sqrt(inputData.reduce((sum, val) => sum + val * val, 0) / inputData.length);
         console.log('Audio level:', audioLevel);
+
+        // Check if audio level is above threshold
+        if (audioLevel > audioThreshold) {
+          framesAboveThresholdRef.current++;
+          if (framesAboveThresholdRef.current >= FRAMES_TO_TRIGGER_INTERRUPT) {
+            if (isAssistantSpeakingRef.current) {
+              console.log('Audio threshold reached. Interrupting assistant.');
+              handleSpeechStarted();
+            }
+          }
+        } else {
+          framesAboveThresholdRef.current = 0;
+        }
       };
 
       source.connect(processor);
@@ -269,8 +311,11 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       console.error('Error accessing microphone:', err);
       setError('Error accessing microphone. Please check your permissions.');
     }
-  }, []);
+  }, [audioThreshold]);
 
+  /**
+   * Handles the start of the interaction, initializing clients and starting recording.
+   */
   const handleStart = useCallback(async () => {
     setIsLoading(true);
     setError('');
@@ -281,8 +326,7 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       await simliClientRef.current?.start();
       await startRecording();
 
-      setIsAvatarVisible(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting interaction:', error);
       setError(`Error starting interaction: ${error.message}`);
     } finally {
@@ -290,6 +334,9 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
     }
   }, [initializeOpenAIClient, onStart, startRecording]);
 
+  /**
+   * Handles stopping the interaction, cleaning up resources and resetting states.
+   */
   const handleStop = useCallback(() => {
     console.log('Stopping interaction...');
     setIsLoading(false);
@@ -311,8 +358,19 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
     console.log('Interaction stopped');
   }, []);
 
+  // Effect to initialize Simli client and clean up resources on unmount
   useEffect(() => {
     initializeSimliClient();
+
+    if(simliClientRef.current) {
+      simliClientRef.current?.on('connected', () => {
+        console.log('SimliClient connected');
+        setIsAvatarVisible(true);
+        const audioData = new Uint8Array(6000).fill(0);
+        simliClientRef.current?.sendAudioData(audioData);
+        console.log('Sent initial audio data');
+      });
+    }
 
     return () => {
       simliClientRef.current?.close();
@@ -325,6 +383,8 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       }
     };
   }, [initializeSimliClient]);
+
+
 
   return (
     <>
@@ -345,7 +405,7 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
         ) : (
           <button
             onClick={handleStop}
-            className="w-full mt-4 bg-red-600 text-white py-3 justify-center rounded-[100px] backdrop-blur transition-all duration-300 hover:rounded hover:bg-white hover:text-black hover:rounded-sm px-6"
+            className="w-full mt-4 bg-red-600 text-white py-3 justify-center rounded-[100px] backdrop-blur transition-all duration-300 hover:bg-white hover:text-black hover:rounded-sm px-6"
           >
             <span className="font-abc-repro-mono font-bold w-[164px]">
               Stop Interaction
@@ -359,6 +419,19 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
         <p>Current response ID: {currentResponseIdRef.current}</p>
         <p>Last played sample: {lastPlayedSampleRef.current}</p>
         <p>Error: {error}</p>
+        <div>
+          <label htmlFor="audioThreshold">Audio Threshold:</label>
+          <input
+            type="range"
+            id="audioThreshold"
+            min="0"
+            max="1"
+            step="0.01"
+            value={audioThreshold}
+            onChange={(e) => setAudioThreshold(parseFloat(e.target.value))}
+          />
+          <span>{audioThreshold}</span>
+        </div>
       </div>
     </>
   );
