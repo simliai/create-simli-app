@@ -41,6 +41,11 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
   const framesAboveThresholdRef = useRef(0);
   const FRAMES_TO_TRIGGER_INTERRUPT = 5; // Number of consecutive frames above threshold to trigger interruption
 
+  // New refs for managing audio chunk delay
+  const audioChunkQueueRef = useRef<Int16Array[]>([]);
+  const isProcessingChunkRef = useRef(false);
+  const timeDelayBetweenChunks = 200; // Delay between sending audio chunks in milliseconds
+
   /**
    * Initializes the Simli client with the provided configuration.
    */
@@ -123,14 +128,30 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       isAssistantSpeakingRef.current = true;
       if (delta && delta.audio) {
         const downsampledAudio = downsampleAudio(delta.audio, 24000, 16000);
-        if (isFirstChunkRef.current) {
-          simliClientRef.current?.sendAudioData(downsampledAudio as any);
-          console.log('Sent first audio chunk to Simli immediately:', downsampledAudio.length);
-          isFirstChunkRef.current = false;
-          scheduleNextAudioChunk();
-        } else {
-          audioBufferRef.current.push(downsampledAudio);
+        audioChunkQueueRef.current.push(downsampledAudio);
+        if (!isProcessingChunkRef.current) {
+          processNextAudioChunk();
         }
+      }
+    }
+  }, []);
+
+  /**
+   * Processes the next audio chunk in the queue.
+   */
+  const processNextAudioChunk = useCallback(() => {
+    if (audioChunkQueueRef.current.length > 0 && !isProcessingChunkRef.current) {
+      isProcessingChunkRef.current = true;
+      const audioChunk = audioChunkQueueRef.current.shift();
+      if (audioChunk) {
+        setTimeout(() => {
+          if (isAssistantSpeakingRef.current) {
+            simliClientRef.current?.sendAudioData(audioChunk as any);
+            console.log('Sent audio chunk to Simli:', audioChunk.length);
+          }
+          isProcessingChunkRef.current = false;
+          processNextAudioChunk();
+        }, timeDelayBetweenChunks);
       }
     }
   }, []);
@@ -204,8 +225,8 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
   
     console.log('Interrupting assistant');
     
-    audioBufferRef.current = [];
-    console.log('Cleared audio buffer.');
+    audioChunkQueueRef.current = [];
+    console.log('Cleared audio chunk queue.');
 
     openAIClientRef.current?.dispatch('response.cancel', {
       response_id: currentResponseIdRef.current
