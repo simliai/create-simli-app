@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@deepgram/sdk": "^3.5.1",
+    "@openai/realtime-api-beta": "github:openai/openai-realtime-api-beta",
     "axios": "^1.7.5",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
@@ -21,7 +22,7 @@
     "openai": "^4.61.0",
     "react": "^18",
     "react-dom": "^18",
-    "simli-client": "^1.1.0",
+    "simli-client": "^1.1.2",
     "tailwind-merge": "^2.5.2",
     "ws": "^8.18.0"
   },
