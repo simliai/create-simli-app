@@ -21,6 +21,7 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
   const [isAvatarVisible, setIsAvatarVisible] = useState(false);
   const [error, setError] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [userMessage, setUserMessage] = useState('...');
 
   // Refs for various components and states
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -102,9 +103,14 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
       console.log('Assistant message detected');
       if (delta && delta.audio) {
         const downsampledAudio = downsampleAudio(delta.audio, 24000, 16000);
-        simliClientRef.current?.sendAudioData(downsampledAudio as any);
+        audioChunkQueueRef.current.push(downsampledAudio);
+        if (!isProcessingChunkRef.current) {
+          processNextAudioChunk();
+        }
       }
-    }
+    }else if(item.type === 'message' && item.role === 'user'){
+      setUserMessage(item.content[0].transcript);
+    };
   }, []);
 
   /**
@@ -423,6 +429,10 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
         </button>
       ) : (
         <>
+          <div className="flex flex-col items-center w-full">
+            <div className="font-abc-repro-mono h-[20px] text-nowrap font-bold text-center">
+              {userMessage}
+            </div>
           <button
             onMouseDown={handlePushToTalkStart}
             onMouseUp={handlePushToTalkEnd}
@@ -442,6 +452,7 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
               Stop Interaction
             </span>
           </button>
+          </div>
         </>
       )}
     </div>
