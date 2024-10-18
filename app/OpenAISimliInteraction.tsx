@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { RealtimeClient } from "@openai/realtime-api-beta";
 import { SimliClient } from "simli-client";
 import VideoBox from "./VideoBox";
+import cn from "./utils/TailwindMergeAndClsx";
 
 interface OpenAISimliInteractionProps {
   simli_faceid: string;
@@ -24,6 +25,7 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
   const [error, setError] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [userMessage, setUserMessage] = useState("...");
+  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
 
   // Refs for various components and states
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -139,7 +141,6 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
         );
         isProcessingChunkRef.current = false;
         processNextAudioChunk();
-
       }
     }
   }, []);
@@ -274,26 +275,31 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
 
   // Push-to-talk button handlers
   const handlePushToTalkStart = useCallback(() => {
-    startRecording();
-  }, [startRecording]);
+    if (!isButtonDisabled) {
+      startRecording();
+    }
+  }, [startRecording, isButtonDisabled]);
 
   const handlePushToTalkEnd = useCallback(() => {
     stopRecording();
-    // Optionally, you can add logic here to send a "user finished speaking" signal to OpenAI
+    setIsButtonDisabled(true);
+    setTimeout(() => {
+      setIsButtonDisabled(false);
+    }, 300); // 300ms delay before allowing the button to be pressed again
   }, [stopRecording]);
 
   // Visualize mic audio
   const AudioVisualizer = () => {
     const [volume, setVolume] = useState(0);
-  
+
     useEffect(() => {
       const interval = setInterval(() => {
         setVolume(Math.random() * 100);
       }, 100);
-  
+
       return () => clearInterval(interval);
     }, []);
-  
+
     return (
       <div className="flex items-end justify-center space-x-1 h-5">
         {[...Array(5)].map((_, i) => (
@@ -359,19 +365,21 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
                 className="group w-[70px] flex items-center mt-4 bg-red-600 text-white py-3 justify-center rounded-[100px] backdrop-blur transition-all duration-300 hover:bg-white hover:text-black hover:rounded-sm px-6"
               >
                 {/* square svg */}
-              <div className="h-5 w-5 bg-white group-hover:bg-black transition-all duration-300"/>
+                <div className="h-5 w-5 bg-white group-hover:bg-black transition-all duration-300" />
               </button>
               <button
                 onMouseDown={handlePushToTalkStart}
-                onMouseUp={handlePushToTalkEnd}
                 onTouchStart={handlePushToTalkStart}
+                onMouseUp={handlePushToTalkEnd}
                 onTouchEnd={handlePushToTalkEnd}
-                className={`w-full mt-4 ${
-                  isRecording ? "bg-red-600" : "bg-simliblue"
-                } text-white py-3 px-6 rounded-[100px] transition-all duration-300 hover:text-black hover:bg-white hover:rounded-sm`}
+                onMouseLeave={handlePushToTalkEnd}
+                disabled={isButtonDisabled}
+                className={cn('w-full mt-4 text-white bg-simliblue hover:bg-opacity-80 py-3 px-6 rounded-[100px] transition-all duration-300',
+                  isRecording && 'text-black bg-white rounded-sm hover:bg-opacity-100'
+                )}
               >
                 <span className="font-abc-repro-mono font-bold w-[164px]">
-                  {isRecording ? <AudioVisualizer/> : "Push to Talk"}
+                  {isRecording ? "Release to Stop" : "Push to Talk"}
                 </span>
               </button>
             </div>
