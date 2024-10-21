@@ -3,6 +3,8 @@ import { RealtimeClient } from "@openai/realtime-api-beta";
 import { SimliClient } from "simli-client";
 import VideoBox from "./VideoBox";
 import cn from "./utils/TailwindMergeAndClsx";
+import IconExit from "@/media/IconExit";
+import IconSparkleLoader from "@/media/IconSparkleLoader";
 
 interface OpenAISimliInteractionProps {
   simli_faceid: string;
@@ -351,22 +353,22 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
           <button
             onClick={handleStart}
             disabled={isLoading}
-            className="w-full mt-4 disabled:bg-white disabled:rounded-sm disabled:text-black bg-simliblue text-white py-3 px-6 rounded-[100px] transition-all duration-300 hover:text-black hover:bg-white hover:rounded-sm"
+            className={cn(
+              "w-full h-[52px] mt-4 disabled:bg-[#343434] disabled:text-white disabled:hover:rounded-[100px] bg-simliblue text-white py-3 px-6 rounded-[100px] transition-all duration-300 hover:text-black hover:bg-white hover:rounded-sm",
+              "flex justify-center items-center"
+            )}
           >
-            <span className="font-abc-repro-mono font-bold w-[164px]">
-              {isLoading ? "Loading..." : "Start Interaction"}
-            </span>
+            {isLoading ? (
+              <IconSparkleLoader className="h-[20px] animate-loader" />
+            ) : (
+              <span className="font-abc-repro-mono font-bold w-[164px]">
+                Test Interaction
+              </span>
+            )}
           </button>
         ) : (
           <>
-            <div className="flex items-center gap-2 w-full">
-              <button
-                onClick={handleStop}
-                className="group w-[70px] flex items-center mt-4 bg-red-600 text-white py-3 justify-center rounded-[100px] backdrop-blur transition-all duration-300 hover:bg-white hover:text-black hover:rounded-sm px-6"
-              >
-                {/* square svg */}
-                <div className="h-5 w-5 bg-white group-hover:bg-black transition-all duration-300" />
-              </button>
+            <div className="flex items-center gap-4 w-full">
               <button
                 onMouseDown={handlePushToTalkStart}
                 onTouchStart={handlePushToTalkStart}
@@ -374,13 +376,20 @@ const OpenAISimliInteraction: React.FC<OpenAISimliInteractionProps> = ({
                 onTouchEnd={handlePushToTalkEnd}
                 onMouseLeave={handlePushToTalkEnd}
                 disabled={isButtonDisabled}
-                className={cn('w-full mt-4 text-white bg-simliblue hover:bg-opacity-80 py-3 px-6 rounded-[100px] transition-all duration-300',
-                  isRecording && 'text-black bg-white rounded-sm hover:bg-opacity-100'
+                className={cn(
+                  "mt-4 text-white flex-grow bg-simliblue hover:rounded-sm hover:bg-opacity-70 h-[52px] px-6 rounded-[100px] transition-all duration-300",
+                  isRecording && "bg-[#1B1B1B] rounded-sm hover:bg-opacity-100"
                 )}
               >
                 <span className="font-abc-repro-mono font-bold w-[164px]">
-                  {isRecording ? "Release to Stop" : "Push to Talk"}
+                  {isRecording ? "Release to Stop" : "Push & hold to talk"}
                 </span>
+              </button>
+              <button
+                onClick={handleStop}
+                className=" group w-[52px] h-[52px] flex items-center mt-4 bg-red-600 text-white justify-center rounded-[100px] backdrop-blur transition-all duration-300 hover:bg-white hover:text-black hover:rounded-sm"
+              >
+                <IconExit className="group-hover:invert-0 group-hover:brightness-0 transition-all duration-300" />
               </button>
             </div>
           </>

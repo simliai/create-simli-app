@@ -39,9 +39,14 @@ const config: Config = {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        spin: {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(359deg)' },
+        },
       },
       animation: {
         fadeIn: 'fadeIn 1s ease-in-out',
+        loader: 'spin 5s linear infinite',
       },
     },
   },
