@@ -39,16 +39,16 @@ const Demo: React.FC = () => {
       </div>
 
       <div className="max-w-[350px] font-thin flex flex-col items-center ">
-        <span className="font-bold mb-[8px] leading-5 "> Create OpenAI-Simli App is a starter repo for creating an interactive app with OpenAI's Realtime API and Simli's avatar visualization. </span>
+        <span className="font-bold mb-[8px] leading-5 "> Create Simli App is a starter repo for creating visual avatars with Simli </span>
         <ul className="list-decimal list-inside max-w-[350px] ml-[6px] mt-2">
           <li className="mb-1">
-            Fill in your OpenAI and Simli API keys in the .env file.
+            Fill in your OpenAI and Simli API keys in .env file.
           </li>
           <li className="mb-1">
-            Test out the interaction and have a conversation with the OpenAI-powered, Simli-visualized avatar.
+            Test out the interaction and have a talk with the OpenAI-powered, Simli-visualized avatar.
           </li>
           <li className="mb-1">
-            You can replace the avatar's face ID and initial prompt with your own. Do this by editing <code>app/page.tsx</code>.
+            You can replace the avatar's face and prompt with your own. Do this by editing <code>app/page.tsx</code>.
           </li>
         </ul>
         <span className=" mt-[16px]">You can now deploy this app to Vercel, or incorporate it as part of your existing project.</span>
