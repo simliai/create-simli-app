@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { abcRepro, abcReproMono } from './fonts';
+import { abcRepro, abcReproMono } from './fonts/fonts';
 import "./globals.css";
 
 

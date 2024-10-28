@@ -7,8 +7,8 @@ Start by signing up and getting your API key from [Simli.com](https://www.simli.
 
 ```bash
 NEXT_PUBLIC_SIMLI_API_KEY="API key from simli.com"
-NEXT_PUBLIC_ELEVENLABS_API_KEY="Paid API key from elevenlabs.io (Free API key doesn't allow streaming audio)"
-NEXT_PUBLIC_DEEPGRAM_API_KEY="API key from deepgram.com"
+ELEVENLABS_API_KEY="Paid API key from elevenlabs.io (Free API key doesn't allow streaming audio)"
+DEEPGRAM_API_KEY="API key from deepgram.com"
 OPENAI_API_KEY="API key from OPENAI"
 ```
 

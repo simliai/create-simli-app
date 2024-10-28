@@ -14,14 +14,14 @@ app.use(express.json());
 const server = http.createServer(app);
 
 const { createClient, LiveTranscriptionEvents } = require("@deepgram/sdk");
-const deepgramClient = createClient(process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY);
+const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
 
 const OpenAI = require('openai');
 const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
-console.log("Deepgram API key:", process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY}` : "Not set");
+console.log("Deepgram API key:", process.env.DEEPGRAM_API_KEY ? `Set: ${process.env.DEEPGRAM_API_KEY}` : "Not set");
 console.log("OpenAI API key:", process.env.OPENAI_API_KEY ? `Set: ${process.env.OPENAI_API_KEY}` : "Not set");
-console.log("ElevenLabs API key:", process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY}` : "Not set");
+console.log("ElevenLabs API key:", process.env.ELEVENLABS_API_KEY ? `Set: ${process.env.ELEVENLABS_API_KEY}` : "Not set");
 console.log("Simli API key:", process.env.NEXT_PUBLIC_SIMLI_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_SIMLI_API_KEY}` : "Not set");
 
 // Connection manager to keep track of active connections
@@ -215,7 +215,7 @@ async function startElevenLabsStreaming(ws, voiceId, connectionId) {
           stability: 0.5,
           similarity_boost: 0.5
         },
-        xi_api_key: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY,
+        xi_api_key: process.env.ELEVENLABS_API_KEY,
       };
       elevenLabsWs.send(JSON.stringify(initialMessage));
       resolve(elevenLabsWs);

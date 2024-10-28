@@ -2,8 +2,8 @@
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
-import logo from '../media/SimliLogoV2.svg';
-import cn from './utils/TailwindMergeAndClsx';
+import logo from '@/media/SimliLogoV2.svg';
+import cn from '@/app/utils/TailwindMergeAndClsx';
 
 interface Props {
   className?: string;

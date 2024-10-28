@@ -4,47 +4,47 @@ import localFont from 'next/font/local'
 export const abcRepro = localFont({
   src: [
     {
-      path: './fonts/ABCRepro-Regular.woff2',
+      path: './ABCRepro-Regular.woff2',
       weight: '400',
       style: 'normal',
     },
     {
-      path: './fonts/ABCRepro-Regular.woff',
+      path: './ABCRepro-Regular.woff',
       weight: '400',
       style: 'normal',
     },
     {
-      path: './fonts/ABCRepro-Regular.otf',
+      path: './ABCRepro-Regular.otf',
       weight: '400',
       style: 'normal',
     },
     {
-      path: './fonts/ABCRepro-Bold.woff2',
+      path: './ABCRepro-Bold.woff2',
       weight: '700',
       style: 'normal',
     },
     {
-      path: './fonts/ABCRepro-Bold.woff',
+      path: './ABCRepro-Bold.woff',
       weight: '700',
       style: 'normal',
     },
     {
-      path: './fonts/ABCRepro-Bold.otf',
+      path: './ABCRepro-Bold.otf',
       weight: '700',
       style: 'normal',
     },
     {
-      path: './fonts/ABCRepro-Black.woff2',
+      path: './ABCRepro-Black.woff2',
       weight: '800',
       style: 'oblique',
     },
     {
-      path: './fonts/ABCRepro-Black.woff',
+      path: './ABCRepro-Black.woff',
       weight: '800',
       style: 'oblique',
     },
     {
-      path: './fonts/ABCRepro-Black.otf',
+      path: './ABCRepro-Black.otf',
       weight: '800',
       style: 'oblique',
     },
@@ -56,12 +56,12 @@ export const abcRepro = localFont({
 export const abcReproMono = localFont({
   src: [
     {
-      path: 'fonts/ABCReproMono-Regular.woff',
+      path: './ABCReproMono-Regular.woff',
       weight: '400',
       style: 'normal',
     },
     {
-      path: 'fonts/ABCReproMono-Bold.woff',
+      path: './ABCReproMono-Bold.woff',
       weight: '800',
       style: 'normal',
     },
