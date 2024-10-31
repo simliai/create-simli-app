@@ -67,6 +67,19 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
           const uint8Array = new Uint8Array(arrayBuffer);
           simliClient.sendAudioData(uint8Array);
         });
+      } else {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'interrupt') {
+            console.log('Interrupting current response');
+            simliClient.ClearBuffer();
+          } else if (message.type === 'text') {
+            // const uint8Array = new Uint8Array(6000).fill(0);
+            // simliClient.sendAudioData(uint8Array);
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
       }
     };
 

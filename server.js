@@ -60,10 +60,11 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
+const setupWebSocket = (ws, initialPrompt, voiceId, connectionId) => {
   let is_finals = [];
   let audioQueue = [];
   let keepAlive;
+  let currentOpenAIStream = null; // Track current OpenAI stream
 
   const deepgram = deepgramClient.listen.live({
     model: "nova-2",
@@ -81,7 +82,7 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
       const audioData = audioQueue.shift();
       deepgram.send(audioData);
     }
-  });
+  });  
 
   deepgram.addListener(LiveTranscriptionEvents.Transcript, (data) => {
     const transcript = data.channel.alternatives[0].transcript;
@@ -92,8 +93,13 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
           const utterance = is_finals.join(" ");
           is_finals = [];
           console.log(`Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`);
-          
+
           promptLLM(ws, initialPrompt, utterance, voiceId, connectionId);
+
+          console.log('Interrupting');
+          ws.send(JSON.stringify({ type: 'interrupt' }));
+          currentOpenAIStream.controller.abort(); // Abort the current stream
+          currentOpenAIStream = null; // Clear current stream reference
         } else {
           console.log(`Deepgram STT: [Is Final] ${transcript} (ID: ${connectionId})`);
         }
@@ -149,6 +155,7 @@ function setupWebSocket(ws, initialPrompt, voiceId, connectionId) {
 
 async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
   try {
+    const controller = new AbortController(); // Create abort controller
     const stream = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -165,34 +172,49 @@ async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
       max_tokens: 50,
       top_p: 1,
       stream: true,
-    });
+    }, { signal: controller.signal }); // Add abort signal
+
+    currentOpenAIStream = { stream, controller }; // Store stream and controller
 
     let fullResponse = '';
     let elevenLabsWs = null;
 
-    for await (const chunk of stream) {
-      if (!connections.has(connectionId)) {
-        console.log(`LLM process stopped: Connection ${connectionId} no longer exists`);
-        break;
+    try {
+      for await (const chunk of stream) {
+        if (!connections.has(connectionId)) {
+          console.log(`LLM process stopped: Connection ${connectionId} no longer exists`);
+          break;
+        }
+
+        const chunkMessage = chunk.choices[0]?.delta?.content || '';
+        fullResponse += chunkMessage;
+
+        ws.send(JSON.stringify({ type: 'text', content: chunkMessage }));
+
+        if (!elevenLabsWs && fullResponse.length > 0) {
+          elevenLabsWs = await startElevenLabsStreaming(ws, voiceId, connectionId);
+        }
+
+        if (elevenLabsWs && chunkMessage) {
+          const contentMessage = {
+            text: chunkMessage,
+            try_trigger_generation: true,
+          };
+          elevenLabsWs.send(JSON.stringify(contentMessage));
+        }
       }
-
-      const chunkMessage = chunk.choices[0]?.delta?.content || '';
-      fullResponse += chunkMessage;
-
-      ws.send(JSON.stringify({ type: 'text', content: chunkMessage }));
-
-      if (!elevenLabsWs && fullResponse.length > 0) {
-        elevenLabsWs = await startElevenLabsStreaming(ws, voiceId, connectionId);
-      }
-
-      if (elevenLabsWs && chunkMessage) {
-        const contentMessage = {
-          text: chunkMessage,
-          try_trigger_generation: true,
-        };
-        elevenLabsWs.send(JSON.stringify(contentMessage));
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('OpenAI stream aborted due to new speech');
+        if (elevenLabsWs) {
+          elevenLabsWs.close();
+        }
+      } else {
+        throw error;
       }
     }
+
+    currentOpenAIStream = null; // Clear current stream reference
 
     if (elevenLabsWs) {
       elevenLabsWs.send(JSON.stringify({ text: "", try_trigger_generation: true }));
