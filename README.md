@@ -22,7 +22,7 @@ npm run start
 ```
 
 ### Characters
-You can swap out the character by finding one that you like in the [docs](https://docs.simli.com/introduction), or creating your own (coming soon!). 
+You can swap out the character by finding one that you like in the [docs](https://docs.simli.com/introduction), or [create your own](https://app.simli.com/) 
 
 ![alt text](media/image.png) ![alt text](media/image-4.png) ![alt text](media/image-2.png) ![alt text](media/image-3.png) ![alt text](media/image-5.png) ![alt text](media/image-6.png)
 
