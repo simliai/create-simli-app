@@ -32,7 +32,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, "utils/validateApiKeys.ts"  ],
   "exclude": [
     "node_modules"
   ]

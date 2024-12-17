@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { SimliClient } from 'simli-client';
 import VideoBox from '@/app/components/VideoBox';
 import cn from '@/app/utils/TailwindMergeAndClsx';
 import IconSparkleLoader from "@/media/IconSparkleLoader";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { SimliClient } from 'simli-client';
 
 interface AvatarInteractionProps {
   simli_faceid: string;
@@ -35,8 +35,8 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
         apiKey: process.env.NEXT_PUBLIC_SIMLI_API_KEY || '',
         faceID: simli_faceid,
         handleSilence: true,
-        maxSessionLength: 3600,
-        maxIdleTime: 600,
+        maxSessionLength: 200,
+        maxIdleTime: 100,
         videoRef: videoRef,
         audioRef: audioRef,
       });
@@ -103,13 +103,16 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to start conversation');
+        const data = await response.json();
+        throw new Error(data.error);
       }
 
       const data = await response.json();
       initializeWebSocket(data.connectionId);
     } catch (error) {
       console.error('Error starting conversation:', error);
+      window.alert(`${error}`)
+      handleStop();
       setError('Failed to start conversation. Please try again.');
     }
   }, [elevenlabs_voiceid, initialPrompt, initializeWebSocket]);
@@ -133,7 +136,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
     if (audioStream) {
       audioStream.getTracks().forEach(track => track.stop());
     }
-    
+
     simliClient.close();
     socketRef.current?.close();
     window.location.href = '/';
@@ -182,9 +185,8 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
   return (
     <>
       <div
-        className={`transition-all duration-300 ${
-          showDottedFace ? "h-0 overflow-hidden" : "h-auto"
-        }`}
+        className={`transition-all duration-300 ${showDottedFace ? "h-0 overflow-hidden" : "h-auto"
+          }`}
       >
         <VideoBox video={videoRef} audio={audioRef} />
       </div>
