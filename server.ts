@@ -33,7 +33,7 @@ app.post('/start-conversation', (req: any, res: any) => {
 
   const validate = validateApiKeys();
   if (!validate.valid) {
-    console.error('API key validation failed. Error:', validate.errors)
+    console.error('API key validation failed. Fix the following errors and run `npm run start` again:', validate.errors)
     return res.status(400).json({ error: 'API key invalid: ' + validate.errors });
   }
   
