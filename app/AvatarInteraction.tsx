@@ -112,7 +112,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
     } catch (error) {
       console.error('Error starting conversation:', error);
       window.alert(`${error}`)
-      //handleStop();
+      handleStop();
       setError('Failed to start conversation. Please try again.');
     }
   }, [elevenlabs_voiceid, initialPrompt, initializeWebSocket]);
