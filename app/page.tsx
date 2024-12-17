@@ -6,6 +6,7 @@ import Navbar from "@/app/components/Navbar";
 import GitHubLogo from "@/media/github-mark-white.svg";
 import Image from "next/image";
 import React, { useState } from "react";
+import { Toaster } from "react-hot-toast";
 
 // Update the Avatar interface to include an image URL
 interface Avatar {
@@ -34,6 +35,8 @@ const Demo: React.FC = () => {
   };
 
   return (
+    <>
+    <Toaster />
     <div className="bg-black min-h-screen flex flex-col items-center font-abc-repro font-normal text-sm text-white p-8">
       <SimliHeaderLogo />
       <Navbar />
@@ -89,7 +92,7 @@ const Demo: React.FC = () => {
         </p>
       )}
     </div>
-  );
+  </>);
 };
 
 export default Demo;

@@ -6,14 +6,9 @@ import http from 'http';
 import OpenAI from 'openai';
 import url from 'url';
 import { WebSocket } from 'ws';
-import { validateApiKeys } from "./utils/validateApiKeys";
+import { validateApiKeys } from './utils/validateApiKeys';
 
 dotenv.config();
-const validate = validateApiKeys();
-if (!validate.valid) {
-  console.error('API key validation failed. Error:', validate.errors)
-  process.exit(1);
-}
 
 const app = express();
 app.use(cors());
@@ -28,20 +23,20 @@ const openai = new OpenAI({
 
 let currentOpenAIStream: { stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>; controller: AbortController } | null = null; // Track current OpenAI stream
 
-console.log("Deepgram API key:", process.env.DEEPGRAM_API_KEY ? `Set: ${process.env.DEEPGRAM_API_KEY}` : "Not set");
-console.log("OpenAI API key:", process.env.OPENAI_API_KEY ? `Set: ${process.env.OPENAI_API_KEY}` : "Not set");
-console.log("ElevenLabs API key:", process.env.ELEVENLABS_API_KEY ? `Set: ${process.env.ELEVENLABS_API_KEY}` : "Not set");
-console.log("Simli API key:", process.env.NEXT_PUBLIC_SIMLI_API_KEY ? `Set: ${process.env.NEXT_PUBLIC_SIMLI_API_KEY}` : "Not set");
-
 // Connection manager to keep track of active connections
 const connections = new Map();
-
 app.post('/start-conversation', (req: any, res: any) => {
   const { prompt, voiceId } = req.body as { prompt: string; voiceId: string };
   if (!prompt || !voiceId) {
     return res.status(400).json({ error: 'Prompt and voiceId are required' });
   }
 
+  const validate = validateApiKeys();
+  if (!validate.valid) {
+    console.error('API key validation failed. Error:', validate.errors)
+    return res.status(400).json({ error: 'API key invalid: ' + validate.errors });
+  }
+  
   const connectionId = Date.now().toString();
   connections.set(connectionId, { prompt, voiceId });
   res.json({ connectionId, message: 'Conversation started. Connect to WebSocket to continue.' });
@@ -75,7 +70,7 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-const setupWebSocket = (ws: WebSocket, initialPrompt: string, voiceId: string, connectionId: string | string []) => {
+const setupWebSocket = (ws: WebSocket, initialPrompt: string, voiceId: string, connectionId: string | string[]) => {
   let is_finals: string[] = [];
   let audioQueue: any[] = [];
   let keepAlive: NodeJS.Timeout;
