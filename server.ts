@@ -1,23 +1,32 @@
-const express = require("express");
-const http = require("http");
-const WebSocket = require("ws");
-const dotenv = require("dotenv");
-const axios = require("axios");
-const url = require('url'); 
+import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import express from 'express';
+import http from 'http';
+import OpenAI from 'openai';
+import url from 'url';
+import { WebSocket } from 'ws';
+import { validateApiKeys } from "./utils/validateApiKeys";
+
 dotenv.config();
-dotenv.config({ path: `.env.local`, override: true });
+const validate = validateApiKeys();
+if (!validate.valid) {
+  console.error('API key validation failed')
+  process.exit(1);
+}
 
 const app = express();
-const cors = require('cors');
 app.use(cors());
 app.use(express.json());
 const server = http.createServer(app);
 
-const { createClient, LiveTranscriptionEvents } = require("@deepgram/sdk");
 const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
 
-const OpenAI = require('openai');
-const openai = new OpenAI(process.env.OPENAI_API_KEY);
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '' // Provide empty string as fallback
+});
+
+let currentOpenAIStream: { stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>; controller: AbortController } | null = null; // Track current OpenAI stream
 
 console.log("Deepgram API key:", process.env.DEEPGRAM_API_KEY ? `Set: ${process.env.DEEPGRAM_API_KEY}` : "Not set");
 console.log("OpenAI API key:", process.env.OPENAI_API_KEY ? `Set: ${process.env.OPENAI_API_KEY}` : "Not set");
@@ -27,8 +36,8 @@ console.log("Simli API key:", process.env.NEXT_PUBLIC_SIMLI_API_KEY ? `Set: ${pr
 // Connection manager to keep track of active connections
 const connections = new Map();
 
-app.post('/start-conversation', (req, res) => {
-  const { prompt, voiceId } = req.body;
+app.post('/start-conversation', (req: any, res: any) => {
+  const { prompt, voiceId } = req.body as { prompt: string; voiceId: string };
   if (!prompt || !voiceId) {
     return res.status(400).json({ error: 'Prompt and voiceId are required' });
   }
@@ -41,8 +50,14 @@ app.post('/start-conversation', (req, res) => {
 const wss = new WebSocket.Server({ noServer: true });
 
 server.on('upgrade', (request, socket, head) => {
+  // Make sure url is defined
+  if (!request.url) {
+    socket.destroy();
+    return;
+  }
+
   const { pathname, query } = url.parse(request.url, true);
-  
+
   if (pathname === '/ws') {
     const connectionId = query.connectionId;
     if (!connectionId || !connections.has(connectionId)) {
@@ -60,11 +75,11 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-const setupWebSocket = (ws, initialPrompt, voiceId, connectionId) => {
-  let is_finals = [];
-  let audioQueue = [];
-  let keepAlive;
-  let currentOpenAIStream = null; // Track current OpenAI stream
+const setupWebSocket = (ws: WebSocket, initialPrompt: string, voiceId: string, connectionId: string | string []) => {
+  let is_finals: string[] = [];
+  let audioQueue: any[] = [];
+  let keepAlive: NodeJS.Timeout;
+  currentOpenAIStream = null; // Track current OpenAI stream
 
   const deepgram = deepgramClient.listen.live({
     model: "nova-2",
@@ -82,7 +97,7 @@ const setupWebSocket = (ws, initialPrompt, voiceId, connectionId) => {
       const audioData = audioQueue.shift();
       deepgram.send(audioData);
     }
-  });  
+  });
 
   deepgram.addListener(LiveTranscriptionEvents.Transcript, (data) => {
     const transcript = data.channel.alternatives[0].transcript;
@@ -94,12 +109,16 @@ const setupWebSocket = (ws, initialPrompt, voiceId, connectionId) => {
           is_finals = [];
           console.log(`Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`);
 
+          // Only attempt to interrupt if there's an active openAI stream
+          if (currentOpenAIStream) {
+            console.log('Interrupting current stream');
+            currentOpenAIStream.controller.abort();
+            currentOpenAIStream = null;
+            ws.send(JSON.stringify({ type: 'interrupt' }));
+          }
+
           promptLLM(ws, initialPrompt, utterance, voiceId, connectionId);
 
-          console.log('Interrupting');
-          ws.send(JSON.stringify({ type: 'interrupt' }));
-          currentOpenAIStream.controller.abort(); // Abort the current stream
-          currentOpenAIStream = null; // Clear current stream reference
         } else {
           console.log(`Deepgram STT: [Is Final] ${transcript} (ID: ${connectionId})`);
         }
@@ -113,8 +132,9 @@ const setupWebSocket = (ws, initialPrompt, voiceId, connectionId) => {
     if (is_finals.length > 0) {
       const utterance = is_finals.join(" ");
       is_finals = [];
+      initialPrompt = "" // empty prompt 
       console.log(`Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`);
-      promptLLM(ws, utterance, voiceId, connectionId);
+      promptLLM(ws, initialPrompt, utterance, voiceId, connectionId);
     }
   });
 
@@ -128,8 +148,8 @@ const setupWebSocket = (ws, initialPrompt, voiceId, connectionId) => {
     console.error(`Deepgram STT error (ID: ${connectionId}):`, error);
   });
 
-  ws.on("message", (message) => {
-    console.log(`WebSocket: Client data received (ID: ${connectionId})`, typeof message, message.length, "bytes");
+  ws.on("message", (message: any) => {
+    //console.log(`WebSocket: Client data received (ID: ${connectionId})`, typeof message, message.length, "bytes");
 
     if (deepgram.getReadyState() === 1) {
       deepgram.send(message);
@@ -153,7 +173,7 @@ const setupWebSocket = (ws, initialPrompt, voiceId, connectionId) => {
   connections.set(connectionId, { ...connections.get(connectionId), ws, deepgram });
 }
 
-async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
+async function promptLLM(ws: WebSocket, initialPrompt: string, prompt: string, voiceId: string, connectionId: string | string[]) {
   try {
     const controller = new AbortController(); // Create abort controller
     const stream = await openai.chat.completions.create({
@@ -176,8 +196,8 @@ async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
 
     currentOpenAIStream = { stream, controller }; // Store stream and controller
 
-    let fullResponse = '';
-    let elevenLabsWs = null;
+    let fullResponse: string = '';
+    let elevenLabsWs: any | undefined = undefined;
 
     try {
       for await (const chunk of stream) {
@@ -203,7 +223,7 @@ async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
           elevenLabsWs.send(JSON.stringify(contentMessage));
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log('OpenAI stream aborted due to new speech');
         if (elevenLabsWs) {
@@ -225,14 +245,14 @@ async function promptLLM(ws, initialPrompt, prompt, voiceId, connectionId) {
   }
 }
 
-async function startElevenLabsStreaming(ws, voiceId, connectionId) {
+async function startElevenLabsStreaming(ws: WebSocket, voiceId: string, connectionId: string | string[]) {
   return new Promise((resolve, reject) => {
     const elevenLabsWs = new WebSocket(`wss://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream-input?model_id=eleven_turbo_v2_5&output_format=pcm_16000`);
 
     elevenLabsWs.on('open', () => {
       console.log(`Connected to ElevenLabs WebSocket (ID: ${connectionId})`);
       const initialMessage = {
-        text: " ", 
+        text: " ",
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.5
@@ -243,7 +263,7 @@ async function startElevenLabsStreaming(ws, voiceId, connectionId) {
       resolve(elevenLabsWs);
     });
 
-    elevenLabsWs.on('message', (data) => {
+    elevenLabsWs.on('message', (data: any) => {
       if (!connections.has(connectionId)) {
         console.log(`ElevenLabs process stopped: Connection ${connectionId} no longer exists`);
         elevenLabsWs.close();

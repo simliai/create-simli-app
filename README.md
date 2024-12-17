@@ -1,6 +1,6 @@
 # Create Simli App
 This starter is an example of how to create a composable Simli interaction that runs in a Next.js app.
-The project consists of a Next.js app that uses the Simli SDK (`simli-client`) and a server `server.js` that handles the interaction with other services such as speech-to-text (STT), large language models (LLMs) and text-to-speech (TTS). 
+The project consists of a Next.js app that uses the Simli SDK (`simli-client`) and a server `server.ts` that handles the interaction with other services such as speech-to-text (STT), large language models (LLMs) and text-to-speech (TTS). 
 
 ### Environment variables
 Start by signing up and getting your API key from [Simli.com](https://www.simli.com/). Then, fill in the `.env` file in the root of the project and put in the following environment variables:

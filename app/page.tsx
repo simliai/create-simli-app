@@ -1,11 +1,11 @@
 "use client";
-import React, { use, useEffect, useState } from "react";
 import AvatarInteraction from "@/app/AvatarInteraction";
 import DottedFace from "@/app/components/DottedFace";
 import SimliHeaderLogo from "@/app/components/Logo";
 import Navbar from "@/app/components/Navbar";
-import Image from "next/image";
 import GitHubLogo from "@/media/github-mark-white.svg";
+import Image from "next/image";
+import React, { useState } from "react";
 
 // Update the Avatar interface to include an image URL
 interface Avatar {
