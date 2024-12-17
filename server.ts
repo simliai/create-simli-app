@@ -11,7 +11,7 @@ import { validateApiKeys } from "./utils/validateApiKeys";
 dotenv.config();
 const validate = validateApiKeys();
 if (!validate.valid) {
-  console.error('API key validation failed')
+  console.error('API key validation failed. Error:', validate.errors)
   process.exit(1);
 }
 

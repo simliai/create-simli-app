@@ -7,27 +7,21 @@ interface ApiKeyConfig {
 
 const API_KEY_CONFIGS: ApiKeyConfig[] = [
     {
-        key: 'SIMLI_API_KEY',
-        name: 'Simli',
-        pattern: /^[a-z0-9]{21}$/,  // 21 chars, lowercase + numbers
-        required: true
-    },
-    {
         key: 'NEXT_PUBLIC_SIMLI_API_KEY',
-        name: 'Public Simli',
-        pattern: /^[a-z0-9]{21}$/,
+        name: 'Public Simli Key',
+        pattern: /^[a-z0-9]{18,30}$/,
         required: true
     },
     {
         key: 'ELEVENLABS_API_KEY',
         name: 'ElevenLabs',
-        pattern: /^[a-f0-9]{32}$/,  // 32 char hex
+        pattern: /^(?:[a-f0-9]{32}|sk-[A-Za-z0-9-]{45,60})$/,  // 32 char hex or sk-none- format
         required: true
     },
     {
         key: 'OPENAI_API_KEY',
         name: 'OpenAI',
-        pattern: /^sk-[A-Za-z0-9-]{48}$/,  // starts with sk- followed by 48 chars
+        pattern: /^sk-[A-Za-z0-9-]{45,60}$/,  // starts with sk- followed by 45-57 chars (total 48-60)
         required: true
     },
     {
