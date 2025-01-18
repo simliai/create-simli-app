@@ -111,7 +111,7 @@ const AvatarInteraction: React.FC<AvatarInteractionProps> = ({
       initializeWebSocket(data.connectionId);
     } catch (error) {
       console.error('Error starting conversation:', error);
-      window.alert(`${error}`)
+      window.alert(`Whoopsie! Encountered the following error(s):\n\n[${error}].\n\nTry fixing those and restarting the application (npm run start).`)
       handleStop();
       setError('Failed to start conversation. Please try again.');
     }
