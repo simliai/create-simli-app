@@ -1,299 +1,144 @@
-import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import express from 'express';
-import http from 'http';
-import OpenAI from 'openai';
-import url from 'url';
-import { WebSocket } from 'ws';
-import { validateApiKeys } from './utils/validateApiKeys';
+// Custom server: serves the Next.js app, mints Simli session tokens and runs the
+// voice pipeline (Deepgram -> OpenAI -> ElevenLabs) over a WebSocket on the same
+// origin. All provider keys stay in this process.
+import { loadEnvConfig } from "@next/env";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import next from "next";
+import { generateSimliSessionToken } from "simli-client";
+import { WebSocketServer } from "ws";
+import { loadConfig, type Config } from "./server/config";
+import { Conversation } from "./server/conversation";
+import { clientIp, isAllowedOrigin, RateLimiter, TicketStore } from "./server/security";
 
-dotenv.config();
+const dev = process.env.NODE_ENV !== "production";
+// Same .env loading rules as `next dev` / `next start` (.env, .env.local, ...).
+loadEnvConfig(process.cwd(), dev);
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-const server = http.createServer(app);
+const { config, errors, warnings } = loadConfig();
+for (const w of warnings) console.warn(`[config] warning: ${w}`);
+if (errors.length) {
+  console.error(
+    "\n[config] Can't start: fix these in .env (see .env.example), then run the command again.\n" +
+      errors.map((e) => `  - ${e}`).join("\n") +
+      "\n",
+  );
+  process.exit(1);
+}
 
-const deepgramClient = createClient(process.env.DEEPGRAM_API_KEY);
+const MAX_WS_MESSAGE_BYTES = 64 * 1024; // mic frames are ~3.2 KB
+const tickets = new TicketStore();
+const sessionLimiter = new RateLimiter(5, 60_000); // 5 sessions per minute per IP
+let activeConversations = 0;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '' // Provide empty string as fallback
-});
+function sendJson(res: ServerResponse, status: number, body: object) {
+  res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+  res.end(JSON.stringify(body));
+}
 
-let currentOpenAIStream: { stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>; controller: AbortController } | null = null; // Track current OpenAI stream
-
-// Connection manager to keep track of active connections
-const connections = new Map();
-app.post('/start-conversation', (req: any, res: any) => {
-  const { prompt, voiceId } = req.body as { prompt: string; voiceId: string };
-  if (!prompt || !voiceId) {
-    return res.status(400).json({ error: 'Prompt and voiceId are required' });
+/**
+ * POST /api/session: mints a short-lived Simli session token (the API key never
+ * leaves the server) plus a one-time ticket for the conversation WebSocket.
+ *
+ * TODO before deploying: check the signed-in user here. Anyone who can call this
+ * endpoint can spend your Simli minutes and provider credits.
+ */
+async function handleSessionRequest(req: IncomingMessage, res: ServerResponse, cfg: Config) {
+  if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
+  if (!isAllowedOrigin(req, cfg.allowedOrigins)) return sendJson(res, 403, { error: "Origin not allowed" });
+  if (!sessionLimiter.allow(clientIp(req))) return sendJson(res, 429, { error: "Too many sessions. Try again in a minute." });
+  if (activeConversations >= cfg.maxConcurrentSessions) {
+    return sendJson(res, 503, { error: "The server is busy (MAX_CONCURRENT_SESSIONS reached). Try again later." });
   }
+  req.resume(); // the body isn't used
 
-  const validate = validateApiKeys();
-  if (!validate.valid) {
-    console.error('API key validation failed. Fix the following errors and run `npm run start` again:', validate.errors)
-    return res.status(400).json({ error: 'API key invalid: ' + validate.errors });
+  try {
+    const { session_token, warnings } = await generateSimliSessionToken({
+      apiKey: cfg.simli.apiKey,
+      config: {
+        faceId: cfg.simli.faceId,
+        maxSessionLength: cfg.simli.maxSessionLength,
+        maxIdleTime: cfg.simli.maxIdleTime,
+        // TTS audio arrives in bursts via sendAudioData: let Simli fill the gaps.
+        handleSilence: true,
+        // Square, to match the square video box in the UI (app/components/VideoBox.tsx).
+        // For a 16:9 layout use 1366 x 768 and change the box's aspect ratio to match.
+        streaming_width: 768,
+        streaming_height: 768,
+      },
+    });
+    if (warnings?.length) console.warn("[simli] token warnings:", warnings);
+    sendJson(res, 200, { sessionToken: session_token, wsTicket: tickets.issue() });
+  } catch (err) {
+    // generateSimliSessionToken throws the API's response body (no key in it).
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("[simli] token request failed:", detail);
+    sendJson(res, 502, { error: `Simli token request failed: ${detail}` });
   }
-  
-  const connectionId = Date.now().toString();
-  connections.set(connectionId, { prompt, voiceId });
-  res.json({ connectionId, message: 'Conversation started. Connect to WebSocket to continue.' });
-});
+}
 
-const wss = new WebSocket.Server({ noServer: true });
+async function main() {
+  const app = next({ dev, port: config.port, hostname: "localhost" });
+  const handle = app.getRequestHandler();
+  await app.prepare();
 
-server.on('upgrade', (request, socket, head) => {
-  // Make sure url is defined
-  if (!request.url) {
-    socket.destroy();
-    return;
-  }
-
-  const { pathname, query } = url.parse(request.url, true);
-
-  if (pathname === '/ws') {
-    const connectionId = query.connectionId;
-    if (!connectionId || !connections.has(connectionId)) {
-      socket.destroy();
+  const server = createServer((req, res) => {
+    const path = (req.url ?? "/").split("?")[0];
+    if (path === "/api/session") {
+      handleSessionRequest(req, res, config).catch((err) => {
+        console.error("[session]", err);
+        if (!res.headersSent) sendJson(res, 500, { error: "Internal error" });
+      });
       return;
     }
+    void handle(req, res);
+  });
 
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      const connection = connections.get(connectionId);
-      console.log(`WebSocket: Client connected (ID: ${connectionId})`);
-      setupWebSocket(ws, connection.prompt, connection.voiceId, connectionId);
+  const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_WS_MESSAGE_BYTES });
+
+  // Next.js attaches its own upgrade listener (dev HMR on /_next/*) to this server
+  // and ignores paths it doesn't own, so only /ws is handled here.
+  server.on("upgrade", (req, socket, head) => {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    if (url.pathname.startsWith("/_next/")) return;
+    const reject = (status: string) => {
+      socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\n\r\n`);
+    };
+    if (url.pathname !== "/ws") return reject("404 Not Found");
+    if (!isAllowedOrigin(req, config.allowedOrigins)) return reject("403 Forbidden");
+    if (!tickets.redeem(url.searchParams.get("ticket"))) return reject("401 Unauthorized");
+    if (activeConversations >= config.maxConcurrentSessions) return reject("503 Service Unavailable");
+
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      activeConversations += 1;
+      const id = Math.random().toString(36).slice(2, 8);
+      const log = (msg: string, ...rest: unknown[]) => console.log(`[conv ${id}] ${msg}`, ...rest);
+      log(`connected (${activeConversations} active)`);
+      const conversation = new Conversation(ws, config, log);
+      ws.once("close", () => {
+        activeConversations -= 1;
+        conversation.close();
+      });
+      conversation.start().catch((err) => {
+        log("failed to start:", err);
+        ws.close(1011, "Failed to start");
+      });
     });
-  } else {
-    socket.destroy();
-  }
-});
-
-const setupWebSocket = (ws: WebSocket, initialPrompt: string, voiceId: string, connectionId: string | string[]) => {
-  let is_finals: string[] = [];
-  let audioQueue: any[] = [];
-  let keepAlive: NodeJS.Timeout;
-  currentOpenAIStream = null; // Track current OpenAI stream
-
-  const deepgram = deepgramClient.listen.live({
-    model: "nova-2",
-    language: "en",
-    smart_format: true,
-    no_delay: true,
-    interim_results: true,
-    endpointing: 300,
-    utterance_end_ms: 1000
   });
 
-  deepgram.addListener(LiveTranscriptionEvents.Open, () => {
-    console.log(`Deepgram STT: Connected (ID: ${connectionId})`);
-    while (audioQueue.length > 0) {
-      const audioData = audioQueue.shift();
-      deepgram.send(audioData);
-    }
+  server.listen(config.port, () => {
+    console.log(`> Ready on http://localhost:${config.port} (${dev ? "development" : "production"})`);
   });
 
-  deepgram.addListener(LiveTranscriptionEvents.Transcript, (data) => {
-    const transcript = data.channel.alternatives[0].transcript;
-    if (transcript !== "") {
-      if (data.is_final) {
-        is_finals.push(transcript);
-        if (data.speech_final) {
-          const utterance = is_finals.join(" ");
-          is_finals = [];
-          console.log(`Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`);
-
-          // Only attempt to interrupt if there's an active openAI stream
-          if (currentOpenAIStream) {
-            console.log('Interrupting current stream');
-            currentOpenAIStream.controller.abort();
-            currentOpenAIStream = null;
-            ws.send(JSON.stringify({ type: 'interrupt' }));
-          }
-
-          promptLLM(ws, initialPrompt, utterance, voiceId, connectionId);
-
-        } else {
-          console.log(`Deepgram STT: [Is Final] ${transcript} (ID: ${connectionId})`);
-        }
-      } else {
-        console.log(`Deepgram STT: [Interim Result] ${transcript} (ID: ${connectionId})`);
-      }
-    }
-  });
-
-  deepgram.addListener(LiveTranscriptionEvents.UtteranceEnd, () => {
-    if (is_finals.length > 0) {
-      const utterance = is_finals.join(" ");
-      is_finals = [];
-      initialPrompt = "" // empty prompt 
-      console.log(`Deepgram STT: [Speech Final] ${utterance} (ID: ${connectionId})`);
-      promptLLM(ws, initialPrompt, utterance, voiceId, connectionId);
-    }
-  });
-
-  deepgram.addListener(LiveTranscriptionEvents.Close, () => {
-    console.log(`Deepgram STT: Disconnected (ID: ${connectionId})`);
-    clearInterval(keepAlive);
-    deepgram.removeAllListeners();
-  });
-
-  deepgram.addListener(LiveTranscriptionEvents.Error, (error) => {
-    console.error(`Deepgram STT error (ID: ${connectionId}):`, error);
-  });
-
-  ws.on("message", (message: any) => {
-    //console.log(`WebSocket: Client data received (ID: ${connectionId})`, typeof message, message.length, "bytes");
-
-    if (deepgram.getReadyState() === 1) {
-      deepgram.send(message);
-    } else {
-      console.log(`WebSocket: Data queued for Deepgram. Current state: ${deepgram.getReadyState()} (ID: ${connectionId})`);
-      audioQueue.push(message);
-    }
-  });
-
-  ws.on("close", () => {
-    console.log(`WebSocket: Client disconnected (ID: ${connectionId})`);
-    clearInterval(keepAlive);
-    deepgram.removeAllListeners();
-    connections.delete(connectionId);
-  });
-
-  keepAlive = setInterval(() => {
-    deepgram.keepAlive();
-  }, 10 * 1000);
-
-  connections.set(connectionId, { ...connections.get(connectionId), ws, deepgram });
+  const shutdown = () => {
+    for (const client of wss.clients) client.close(1001, "Server shutting down");
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 3_000).unref();
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
-async function promptLLM(ws: WebSocket, initialPrompt: string, prompt: string, voiceId: string, connectionId: string | string[]) {
-  try {
-    const controller = new AbortController(); // Create abort controller
-    const stream = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: 'assistant',
-          content: initialPrompt
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 1,
-      max_tokens: 50,
-      top_p: 1,
-      stream: true,
-    }, { signal: controller.signal }); // Add abort signal
-
-    currentOpenAIStream = { stream, controller }; // Store stream and controller
-
-    let fullResponse: string = '';
-    let elevenLabsWs: any | undefined = undefined;
-
-    try {
-      for await (const chunk of stream) {
-        if (!connections.has(connectionId)) {
-          console.log(`LLM process stopped: Connection ${connectionId} no longer exists`);
-          break;
-        }
-
-        const chunkMessage = chunk.choices[0]?.delta?.content || '';
-        fullResponse += chunkMessage;
-
-        ws.send(JSON.stringify({ type: 'text', content: chunkMessage }));
-
-        if (!elevenLabsWs && fullResponse.length > 0) {
-          elevenLabsWs = await startElevenLabsStreaming(ws, voiceId, connectionId);
-        }
-
-        if (elevenLabsWs && chunkMessage) {
-          const contentMessage = {
-            text: chunkMessage,
-            try_trigger_generation: true,
-          };
-          elevenLabsWs.send(JSON.stringify(contentMessage));
-        }
-      }
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('OpenAI stream aborted due to new speech');
-        if (elevenLabsWs) {
-          elevenLabsWs.close();
-        }
-      } else {
-        throw error;
-      }
-    }
-
-    currentOpenAIStream = null; // Clear current stream reference
-
-    if (elevenLabsWs) {
-      elevenLabsWs.send(JSON.stringify({ text: "", try_trigger_generation: true }));
-    }
-
-  } catch (error) {
-    console.error(`Error in promptLLM (ID: ${connectionId}):`, error);
-  }
-}
-
-async function startElevenLabsStreaming(ws: WebSocket, voiceId: string, connectionId: string | string[]) {
-  return new Promise((resolve, reject) => {
-    const elevenLabsWs = new WebSocket(`wss://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream-input?model_id=eleven_turbo_v2_5&output_format=pcm_16000`);
-
-    elevenLabsWs.on('open', () => {
-      console.log(`Connected to ElevenLabs WebSocket (ID: ${connectionId})`);
-      const initialMessage = {
-        text: " ",
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5
-        },
-        xi_api_key: process.env.ELEVENLABS_API_KEY,
-      };
-      elevenLabsWs.send(JSON.stringify(initialMessage));
-      resolve(elevenLabsWs);
-    });
-
-    elevenLabsWs.on('message', (data: any) => {
-      if (!connections.has(connectionId)) {
-        console.log(`ElevenLabs process stopped: Connection ${connectionId} no longer exists`);
-        elevenLabsWs.close();
-        return;
-      }
-
-      const message = JSON.parse(data);
-      if (message.audio) {
-        const audioData = Buffer.from(message.audio, 'base64');
-        const chunkSize = 5 * 1024; // 5KB
-        let i = 0;
-        while (i < audioData.length) {
-          const end = Math.min(i + chunkSize, audioData.length);
-          const chunk = audioData.slice(i, end);
-          ws.send(chunk);
-          i += chunkSize;
-        }
-      } else if (message.isFinal) {
-        console.log(`ElevenLabs streaming completed (ID: ${connectionId})`);
-        elevenLabsWs.close();
-      }
-    });
-
-    elevenLabsWs.on('error', (error) => {
-      console.error(`ElevenLabs WebSocket error (ID: ${connectionId}):`, error);
-      reject(error);
-    });
-
-    elevenLabsWs.on('close', () => {
-      console.log(`ElevenLabs WebSocket closed (ID: ${connectionId})`);
-    });
-  });
-}
-
-const port = 8080;
-server.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
