@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import type { ReasoningEffort } from "openai/resources/shared";
 import WebSocket, { type RawData } from "ws";
 import { GREETING, SYSTEM_PROMPT, type Config } from "./config";
+import { errMsg } from "./log";
 
 // One conversation per browser WebSocket:
 //
@@ -18,9 +19,17 @@ const AUDIO_CHUNK_BYTES = 6_000; // ~190 ms, a good size for sendAudioData
 const MAX_HISTORY_MESSAGES = 20;
 
 // Limits on what the browser may send.
-const IDLE_TIMEOUT_MS = 30_000; // close if no mic audio arrives for this long
-const MAX_INBOUND_BYTES_PER_SECOND = 128_000; // real-time mic audio is 32 KB/s
+const NO_AUDIO_TIMEOUT_MS = 15_000; // close if no mic frames arrive for this long
+// Close if nobody has spoken (no transcript from the user, avatar silent) for this
+// long. Based on speech, not bytes, so streaming silence doesn't hold a slot.
+const NO_SPEECH_TIMEOUT_MS = 60_000;
+// Token bucket for mic audio: real time is 32 KB/s; allow 2x sustained, 64 KB burst.
+const INBOUND_BYTES_PER_SECOND = 64_000;
+const INBOUND_BURST_BYTES = 64_000;
 const MAX_QUEUED_CHUNKS = 50; // ~5 s of mic audio buffered while Deepgram connects
+// Close a client that doesn't read what we send (protects server memory).
+const MAX_CLIENT_BUFFERED_BYTES = 2 * 1024 * 1024;
+const WS_OPEN = 1; // readyState of the Deepgram socket
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -46,12 +55,15 @@ export class Conversation {
   private closed = false;
   private timers: NodeJS.Timeout[] = [];
   private lastAudioAt = Date.now();
-  private rateWindow = { start: Date.now(), bytes: 0 };
+  private lastSpeechAt = Date.now();
+  private bucket = { tokens: INBOUND_BURST_BYTES, at: Date.now() };
 
   constructor(
     private ws: WebSocket,
     private config: Config,
-    private log: (msg: string, ...rest: unknown[]) => void,
+    private log: (msg: string) => void,
+    /** Log what the user and the avatar say (LOG_TRANSCRIPTS). */
+    private logTranscripts: boolean,
   ) {
     this.openai = new OpenAI({ apiKey: config.openai.apiKey });
   }
@@ -60,14 +72,18 @@ export class Conversation {
     this.ws.on("message", (data, isBinary) => this.onClientMessage(data, isBinary));
     this.ws.on("close", () => this.close());
     this.ws.on("error", (err) => {
-      this.log("client socket error:", err.message);
+      this.log(`client socket error: ${errMsg(err)}`);
       this.close();
     });
 
-    // Bound the connection: idle mic and total length (matches Simli's maxSessionLength).
+    // Bound the connection: idle mic, no speech, and total length (matches Simli's maxSessionLength).
     this.timers.push(
       setInterval(() => {
-        if (Date.now() - this.lastAudioAt > IDLE_TIMEOUT_MS) this.end(4000, "Idle: no microphone audio");
+        const now = Date.now();
+        if (now - this.lastAudioAt > NO_AUDIO_TIMEOUT_MS) this.end(4000, "Idle: no microphone audio");
+        else if (now - Math.max(this.lastSpeechAt, this.speakingUntil) > NO_SPEECH_TIMEOUT_MS) {
+          this.end(4000, "Idle: nobody spoke for a while");
+        }
       }, 5_000),
       setTimeout(() => this.end(4001, "Maximum session length reached"), this.config.simli.maxSessionLength * 1000),
     );
@@ -89,18 +105,34 @@ export class Conversation {
     const chunk = Array.isArray(data) ? Buffer.concat(data) : Buffer.from(data as ArrayBuffer);
 
     const now = Date.now();
-    if (now - this.rateWindow.start >= 1000) this.rateWindow = { start: now, bytes: 0 };
-    this.rateWindow.bytes += chunk.length;
-    if (this.rateWindow.bytes > MAX_INBOUND_BYTES_PER_SECOND) {
+    const b = this.bucket;
+    b.tokens = Math.min(INBOUND_BURST_BYTES, b.tokens + ((now - b.at) / 1000) * INBOUND_BYTES_PER_SECOND);
+    b.at = now;
+    b.tokens -= chunk.length;
+    if (b.tokens < 0) {
       this.end(1008, "Too much audio data");
       return;
     }
     this.lastAudioAt = now;
 
     if (this.deepgram && this.deepgramOpen) {
-      this.deepgram.sendMedia(chunk);
+      this.sendToDeepgram(chunk);
     } else if (this.queuedAudio.length < MAX_QUEUED_CHUNKS) {
       this.queuedAudio.push(chunk);
+    }
+  }
+
+  /** The SDK throws when its socket is not open (e.g. closing): end cleanly instead of crashing. */
+  private sendToDeepgram(chunk: Buffer) {
+    const dg = this.deepgram;
+    if (!dg) return;
+    try {
+      if (dg.readyState !== WS_OPEN) throw new Error("Deepgram socket is not open");
+      dg.sendMedia(chunk);
+    } catch (err) {
+      this.deepgramOpen = false;
+      this.log(`Deepgram send failed: ${errMsg(err)}`);
+      this.fail("Speech-to-text (Deepgram) disconnected.");
     }
   }
 
@@ -130,47 +162,71 @@ export class Conversation {
       this.deepgram = dg;
       dg.on("message", (msg) => this.onTranscriptMessage(msg));
       dg.on("error", (err) => {
-        this.log("Deepgram error:", err.message);
+        this.log(`Deepgram error: ${errMsg(err)}`);
         this.fail("Speech-to-text (Deepgram) failed. Check DEEPGRAM_API_KEY and the server logs.");
       });
       dg.on("close", () => {
+        const wasOpen = this.deepgramOpen;
         this.deepgramOpen = false;
-        if (!this.closed) this.fail("Speech-to-text (Deepgram) disconnected.");
+        if (this.closed) return;
+        this.fail(
+          wasOpen
+            ? "Speech-to-text (Deepgram) disconnected."
+            : "Could not connect to speech-to-text (Deepgram). Check DEEPGRAM_API_KEY.",
+        );
       });
       dg.connect();
       await dg.waitForOpen();
       this.deepgramOpen = true;
-      for (const chunk of this.queuedAudio.splice(0)) dg.sendMedia(chunk);
+      for (const chunk of this.queuedAudio.splice(0)) this.sendToDeepgram(chunk);
       // Deepgram closes streams that get no audio for 10 s (e.g. a muted mic).
       this.timers.push(
         setInterval(() => {
-          if (this.deepgramOpen) this.deepgram?.sendKeepAlive({ type: "KeepAlive" });
+          const d = this.deepgram;
+          if (!this.deepgramOpen || !d) return;
+          try {
+            if (d.readyState !== WS_OPEN) throw new Error("Deepgram socket is not open");
+            d.sendKeepAlive({ type: "KeepAlive" });
+          } catch (err) {
+            this.deepgramOpen = false;
+            this.log(`Deepgram keep-alive failed: ${errMsg(err)}`);
+            this.fail("Speech-to-text (Deepgram) disconnected.");
+          }
         }, 8_000),
       );
       this.log("Deepgram connected");
     } catch (err) {
-      this.log("Deepgram connect failed:", err instanceof Error ? err.message : err);
+      // The SDK rejects with an event object that includes the request headers
+      // (the API key): log only a sanitized message.
+      this.log(`Deepgram connect failed: ${errMsg(err)}`);
       this.fail("Could not connect to speech-to-text (Deepgram). Check DEEPGRAM_API_KEY.");
     }
   }
 
   private onTranscriptMessage(msg: { type: string }) {
-    if (msg.type === "Results") {
-      const r = msg as unknown as {
-        is_final?: boolean;
-        speech_final?: boolean;
-        channel: { alternatives: { transcript: string }[] };
-      };
-      const transcript = r.channel.alternatives[0]?.transcript?.trim() ?? "";
-      if (!transcript) return;
+    try {
+      if (this.closed) return;
+      if (msg.type === "Results") {
+        const r = msg as unknown as {
+          is_final?: boolean;
+          speech_final?: boolean;
+          channel?: { alternatives?: { transcript?: unknown }[] };
+        };
+        const raw = r.channel?.alternatives?.[0]?.transcript;
+        const transcript = typeof raw === "string" ? raw.trim() : "";
+        if (!transcript) return;
+        this.lastSpeechAt = Date.now();
 
-      // Barge-in: the user said something while the avatar is talking or about to.
-      this.interruptIfSpeaking();
+        // Barge-in: the user said something while the avatar is talking or about to.
+        this.interruptIfSpeaking();
 
-      if (r.is_final) this.finals.push(transcript);
-      if (r.speech_final) this.commitUtterance();
-    } else if (msg.type === "UtteranceEnd") {
-      this.commitUtterance();
+        if (r.is_final) this.finals.push(transcript);
+        if (r.speech_final) this.commitUtterance();
+      } else if (msg.type === "UtteranceEnd") {
+        this.commitUtterance();
+      }
+    } catch (err) {
+      this.log(`bad transcript message: ${errMsg(err)}`);
     }
   }
 
@@ -178,7 +234,7 @@ export class Conversation {
     if (this.finals.length === 0) return;
     const text = this.finals.join(" ");
     this.finals = [];
-    this.log(`user: ${text}`);
+    if (this.logTranscripts) this.log(`user: ${text}`);
     void this.respond({ userText: text });
   }
 
@@ -228,13 +284,13 @@ export class Conversation {
       if (this.turn === turn) {
         this.turn = null;
         if (turn.text.trim()) this.remember({ role: "assistant", content: turn.text.trim() });
-        this.log(`assistant: ${turn.text.trim()}`);
+        if (this.logTranscripts) this.log(`assistant: ${turn.text.trim()}`);
       }
     } catch (err) {
       tts.cancel();
       if (turn.cancelled || this.closed) return;
       if (this.turn === turn) this.turn = null;
-      this.log("reply failed:", err instanceof Error ? err.message : err);
+      this.log(`reply failed: ${errMsg(err)}`);
       this.sendJson({ type: "error", message: describeProviderError(err) });
     }
   }
@@ -358,6 +414,10 @@ export class Conversation {
 
   private sendAudio(pcm: Buffer) {
     if (this.ws.readyState !== WebSocket.OPEN) return;
+    if (this.ws.bufferedAmount > MAX_CLIENT_BUFFERED_BYTES) {
+      this.end(1008, "Client is not reading audio");
+      return;
+    }
     for (let i = 0; i < pcm.length; i += AUDIO_CHUNK_BYTES) {
       this.ws.send(pcm.subarray(i, i + AUDIO_CHUNK_BYTES), { binary: true });
     }
@@ -395,11 +455,11 @@ export class Conversation {
     this.deepgram = null;
     if (dg) {
       try {
-        if (this.deepgramOpen) dg.sendCloseStream({ type: "CloseStream" });
+        if (this.deepgramOpen && dg.readyState === WS_OPEN) dg.sendCloseStream({ type: "CloseStream" });
+        dg.close();
       } catch {
         // already closing
       }
-      dg.close();
     }
     this.deepgramOpen = false;
     this.queuedAudio = [];
