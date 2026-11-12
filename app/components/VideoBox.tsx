@@ -5,11 +5,13 @@ interface VideoBoxProps {
   audio: RefObject<HTMLAudioElement | null>;
 }
 
-// The Simli stream is requested at 768x768 (see server.ts), so the box is square.
-// For 16:9 (1366x768) change aspect-square to aspect-video and widen the box.
+/**
+ * 16:9 player for the Simli stream (server.ts requests 1366x768).
+ * For a square layout, request 768x768 in server.ts and use aspect-square here.
+ */
 export default function VideoBox({ video, audio }: VideoBoxProps) {
   return (
-    <div className="aspect-square w-[350px] max-w-full overflow-hidden bg-simligray">
+    <div className="aspect-video w-full flex rounded-sm overflow-hidden items-center justify-center bg-simligray">
       {/* muted: the voice plays through the <audio> element, which is Simli's in-sync audio */}
       <video ref={video} autoPlay playsInline muted className="h-full w-full object-cover" />
       <audio ref={audio} autoPlay />

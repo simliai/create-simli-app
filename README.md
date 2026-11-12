@@ -52,8 +52,8 @@ If you want to try Simli but don't have API access to these third parties, ask i
 | `DEEPGRAM_API_KEY` | yes | | From https://console.deepgram.com |
 | `OPENAI_API_KEY` | yes | | From https://platform.openai.com/api-keys |
 | `ELEVENLABS_API_KEY` | yes | | From https://elevenlabs.io/app/settings/api-keys |
-| `SIMLI_FACE_ID` | | `bf13113a-…` (Anna) | Avatar face: a [preset](https://docs.simli.com/api-reference/preset-faces) or your own from the dashboard |
-| `ELEVENLABS_VOICE_ID` | | `cgSgspJ2msm6clMCkdW9` | ElevenLabs voice |
+| `SIMLI_FACE_ID` | | `14c60d62-…` (Simli's default Trinity-2 face) | Avatar face: a [preset](https://docs.simli.com/api-reference/preset-faces) or your own from the dashboard |
+| `ELEVENLABS_VOICE_ID` | | `cgSgspJ2msm6clMCkdW9` (Jessica, female) | ElevenLabs voice. Match it to the face |
 | `ELEVENLABS_MODEL_ID` | | `eleven_flash_v2_5` | ElevenLabs model (low latency) |
 | `OPENAI_MODEL` | | `gpt-6-luna` | OpenAI model |
 | `OPENAI_REASONING_EFFORT` | | `none` | `none` for fastest replies; `off` for models without reasoning |
@@ -85,11 +85,14 @@ and **rotate that key** in the Simli dashboard, because it was readable by anyon
 
 - **Face:** set `SIMLI_FACE_ID`. Pick a [preset](https://docs.simli.com/api-reference/preset-faces) or create
   your own avatar from a photo at https://app.simli.com.
-- **Voice:** set `ELEVENLABS_VOICE_ID`.
+- **Voice:** set `ELEVENLABS_VOICE_ID`, and pick a voice that matches the face. The default face
+  (`14c60d62-6ebf-424d-b626-1f4f91c33b04`, Simli's default Trinity-2 face) is a woman, so the default voice is
+  the female premade voice Jessica. If you change the face, check the voice still fits.
 - **Persona and greeting:** edit `SYSTEM_PROMPT` and `GREETING` in `server/config.ts`.
-- **Video shape:** the avatar streams at 768x768 to fit the square video box. For a wide layout, set
-  `streaming_width: 1366, streaming_height: 768` in `server.ts` and change `aspect-square` to `aspect-video`
-  in `app/components/VideoBox.tsx` (the two must match).
+- **Video shape:** the avatar streams 16:9 at 1366x768 (Trinity-2's full frame) to fit the player. For a
+  square layout, set `streaming_width: 768, streaming_height: 768` in `server.ts` and change `aspect-video` to
+  `aspect-square` in `app/components/VideoBox.tsx` and `app/components/DottedFace.tsx` (they must match). See
+  [Trinity-2 framing](https://docs.simli.com/api-reference/trinity-2).
 
 ### Other STT, LLM and TTS providers
 

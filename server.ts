@@ -79,9 +79,9 @@ async function handleSessionRequest(req: IncomingMessage, res: ServerResponse, c
         maxIdleTime: cfg.simli.maxIdleTime,
         // TTS audio arrives in bursts via sendAudioData: let Simli fill the gaps.
         handleSilence: true,
-        // Square, to match the square video box in the UI (app/components/VideoBox.tsx).
-        // For a 16:9 layout use 1366 x 768 and change the box's aspect ratio to match.
-        streaming_width: 768,
+        // 16:9 (Trinity-2's full frame), to match the player in app/components/VideoBox.tsx.
+        // For a square layout use 768 x 768 and change the player to aspect-square.
+        streaming_width: 1366,
         streaming_height: 768,
       },
     });

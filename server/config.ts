@@ -1,8 +1,11 @@
 // Server-only configuration. Everything here is read from environment variables
 // on the server and never sent to the browser.
 
-/** Trinity-2 preset "Anna". Swap for your own face ID from https://app.simli.com. */
-export const DEFAULT_SIMLI_FACE_ID = "bf13113a-355a-4d97-8b90-4edccd1da7b2";
+/**
+ * Simli's default Trinity-2 face (a woman, so the default voice is female).
+ * Swap for your own face ID from https://app.simli.com.
+ */
+export const DEFAULT_SIMLI_FACE_ID = "14c60d62-6ebf-424d-b626-1f4f91c33b04";
 
 // The avatar's persona. Edit these to make the agent your own.
 export const SYSTEM_PROMPT = [
@@ -137,6 +140,7 @@ export function loadConfig(): { config: Config; errors: string[]; warnings: stri
     },
     elevenlabs: {
       apiKey: str("ELEVENLABS_API_KEY"),
+      // ElevenLabs premade voice "Jessica" (female), to match the default face.
       voiceId: str("ELEVENLABS_VOICE_ID", "cgSgspJ2msm6clMCkdW9"),
       modelId: str("ELEVENLABS_MODEL_ID", "eleven_flash_v2_5"),
     },

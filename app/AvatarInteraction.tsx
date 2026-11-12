@@ -206,7 +206,7 @@ export default function AvatarInteraction({ onActiveChange, showDottedFace }: Av
       <div className={`transition-all duration-300 ${showDottedFace ? "h-0 overflow-hidden" : "h-auto"}`}>
         <VideoBox video={videoRef} audio={audioRef} />
       </div>
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center w-full max-w-[350px] mx-auto">
         {!active ? (
           <button
             onClick={start}
@@ -238,7 +238,7 @@ export default function AvatarInteraction({ onActiveChange, showDottedFace }: Av
         )}
       </div>
       {error && (
-        <p role="alert" className="mt-4 max-w-[350px] text-red text-center">
+        <p role="alert" className="mt-4 max-w-[350px] mx-auto text-red text-center">
           {error}
         </p>
       )}
