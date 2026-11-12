@@ -1,9 +1,18 @@
+import type { RefObject } from "react";
 
-export default function VideoBox(props: any) {
-    return (
-        <div className="aspect-video flex items-center h-[350px] w-[350px] justify-center bg-simligray">
-            <video ref={props.video} autoPlay playsInline></video>
-            <audio ref={props.audio} autoPlay ></audio>
-        </div>
-    );
+interface VideoBoxProps {
+  video: RefObject<HTMLVideoElement | null>;
+  audio: RefObject<HTMLAudioElement | null>;
+}
+
+// The Simli stream is requested at 768x768 (see server.ts), so the box is square.
+// For 16:9 (1366x768) change aspect-square to aspect-video and widen the box.
+export default function VideoBox({ video, audio }: VideoBoxProps) {
+  return (
+    <div className="aspect-square w-[350px] max-w-full overflow-hidden bg-simligray">
+      {/* muted: the voice plays through the <audio> element, which is Simli's in-sync audio */}
+      <video ref={video} autoPlay playsInline muted className="h-full w-full object-cover" />
+      <audio ref={audio} autoPlay />
+    </div>
+  );
 }
