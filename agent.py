@@ -56,12 +56,21 @@ def build_session() -> AgentSession:
     """The voice pipeline: speech-to-text, the LLM and text-to-speech, plus turn taking."""
     reasoning_effort = os.getenv("OPENAI_REASONING_EFFORT") or "none"
     return AgentSession(
-        # Speech-to-text. Reads DEEPGRAM_API_KEY.
-        stt=deepgram.STT(model="nova-3", language="en"),
+        # Speech-to-text. Reads DEEPGRAM_API_KEY. Deepgram's default endpoint is in the US; if the
+        # agent runs in Europe, DEEPGRAM_BASE_URL=https://api.eu.deepgram.com/v1/listen cuts the
+        # transcript delay by about 150 ms.
+        stt=deepgram.STT(
+            model="nova-3",
+            language="en",
+            base_url=os.getenv("DEEPGRAM_BASE_URL") or "https://api.deepgram.com/v1/listen",
+        ),
         # The LLM. Reads OPENAI_API_KEY.
         llm=openai.LLM(
             model=os.getenv("OPENAI_MODEL") or DEFAULT_OPENAI_MODEL,
             **({} if reasoning_effort == "off" else {"reasoning_effort": reasoning_effort}),
+            # OpenAI's fast tier (formerly "priority"): about 2x the token price, and a much
+            # steadier time to first token. Set OPENAI_SERVICE_TIER=default to turn it off.
+            service_tier=os.getenv("OPENAI_SERVICE_TIER") or "fast",
         ),
         # Text-to-speech. eleven_flash_v2_5 is ElevenLabs' lowest-latency model.
         tts=elevenlabs.TTS(
@@ -79,6 +88,9 @@ def build_session() -> AgentSession:
             # The avatar can't pause its speech, so there is nothing to resume after a false
             # interruption.
             "interruption": {"resume_false_interruption": False},
+            # Start the reply (LLM and TTS) while the turn detector is still deciding whether
+            # you've finished; it's discarded if you keep talking.
+            "preemptive_generation": {"preemptive_tts": True},
         },
     )
 
