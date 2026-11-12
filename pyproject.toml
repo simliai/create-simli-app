@@ -1,0 +1,28 @@
+[project]
+name = "create-simli-app"
+version = "0.3.0"
+description = "A LiveKit Agents voice pipeline (Deepgram, OpenAI, ElevenLabs) with a Simli Trinity-2 avatar"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+dependencies = [
+    "livekit-agents==1.8.11",
+    "livekit-plugins-deepgram==1.8.11",
+    "livekit-plugins-elevenlabs==1.8.11",
+    "livekit-plugins-openai==1.8.11",
+    "livekit-plugins-simli==1.8.11",
+    "python-dotenv==1.2.4",
+]
+
+[dependency-groups]
+dev = ["ruff==0.17.2"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+extend-exclude = [".agents", ".claude"]  # the vendored Simli skill
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]

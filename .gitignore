@@ -1,28 +1,9 @@
-# dependencies
-node_modules/
-.pnp.*
-.yarn/*
-
-# Next.js
-.next/
-out/
-build/
-next-env.d.ts
-*.tsbuildinfo
-
-# environment: keep secrets out of git. Only the template is committed.
 .env*
 !.env.example
-
-# logs and debug
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# misc
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+.ruff_cache/
 .DS_Store
-*.pem
-coverage/
-.vercel

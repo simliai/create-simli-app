@@ -1,171 +1,112 @@
 # Create Simli App
 
-A starter for a talking AI avatar you can speak with, built with Next.js and [Simli](https://simli.com).
-You talk, and a Simli avatar answers with a lip-synced face and voice in real time.
+A real-time voice agent with a face. [Deepgram](https://deepgram.com) hears you, [OpenAI](https://platform.openai.com) answers, [ElevenLabs](https://elevenlabs.io) speaks, and [Simli](https://www.simli.com) gives it a lip-synced Trinity-2 avatar. [LiveKit Agents](https://docs.livekit.io/agents/) runs the pipeline: it moves the audio, decides when you've finished speaking, and stops the avatar when you interrupt it.
 
-```
-browser mic ──► server ──► Deepgram (speech-to-text, nova-3)
-                        ──► OpenAI (reply, streamed)
-                        ──► ElevenLabs (text-to-speech, PCM 16 kHz)
-            ◄── audio ──┘
-browser ──► Simli (sendAudioData) ──► avatar video + voice
-```
+It's one Python file, plus a small web page to talk to it. You need keys for Simli, LiveKit, Deepgram, OpenAI and ElevenLabs.
 
-- `server.ts` is a custom Next.js server. It serves the app, mints Simli session tokens
-  (`POST /api/session`) and runs the voice pipeline over a WebSocket (`/ws`) on the same origin.
-  All API keys stay on the server.
-- `app/AvatarInteraction.tsx` starts the Simli session, streams the microphone to the server and
-  passes the reply audio to Simli. Only Simli's in-sync audio is played.
-- `server/conversation.ts` holds the pipeline: turn detection, barge-in, LLM and TTS streaming.
-- `server/config.ts` holds the avatar's persona (system prompt and greeting) and reads the environment.
+Want a single speech-to-speech model instead of three providers? See [create-simli-app-livekit-agents](https://github.com/simliai/create-simli-app-livekit-agents) (OpenAI Realtime). Prefer Pipecat? See [create-simli-app-pipecat](https://github.com/simliai/create-simli-app-pipecat).
 
-Simli docs: https://docs.simli.com
+## What's in here
+
+- **[`agent.py`](agent.py)**: the agent. Deepgram (`nova-3`) turns your speech into text, OpenAI (`gpt-6-luna`) writes the reply, and ElevenLabs (`eleven_flash_v2_5`) speaks it. The agent sends that voice to a Simli avatar in the same LiveKit room, and the avatar publishes lip-synced video and voice for the agent.
+- **[`frontend/`](frontend)**: a Next.js page to talk to the avatar in your browser. [`app/api/token/route.ts`](frontend/app/api/token/route.ts) mints a LiveKit token that dispatches the agent, and [`app/components/AvatarCall.tsx`](frontend/app/components/AvatarCall.tsx) joins the room, publishes your mic and shows the avatar.
 
 ## Setup
 
-Requirements: Node.js 20.9 or newer, and accounts with [Simli](https://app.simli.com),
-[Deepgram](https://console.deepgram.com), [OpenAI](https://platform.openai.com) and
-[ElevenLabs](https://elevenlabs.io) (streaming text-to-speech needs a paid ElevenLabs plan).
+You need [uv](https://docs.astral.sh/uv/) for Python, [Node.js](https://nodejs.org) 20.9 or later for the page, and these keys:
+
+- [Simli](https://app.simli.com) (free plan included)
+- [LiveKit Cloud](https://cloud.livekit.io): a project's URL, API key and API secret, from its settings.
+- [Deepgram](https://console.deepgram.com) for speech-to-text
+- [OpenAI](https://platform.openai.com/api-keys) for the replies
+- [ElevenLabs](https://elevenlabs.io/app/settings/api-keys) for the voice
+
+`LIVEKIT_URL` must be a LiveKit server reachable from the internet: LiveKit Cloud, or a self-hosted server with a public address. Simli's servers join the room, so a LiveKit server running locally on your machine won't work.
 
 ```bash
-npm install
-cp .env.example .env   # then fill in the four API keys
-npm run dev            # http://localhost:3000
+git clone https://github.com/simliai/create-simli-app
+cd create-simli-app
+uv sync
+cp .env.example .env                          # then paste in your keys
+cp frontend/.env.example frontend/.env.local  # then copy in the same three LIVEKIT_ values
 ```
 
-Open http://localhost:3000, click **Test Interaction**, allow the microphone, and wait for the avatar
-to greet you. Use headphones if the avatar keeps interrupting itself (its voice reaching your mic).
+All the provider keys live in `.env`, which only the agent reads. The page's API route reads the LiveKit key and secret on the server; no key reaches the browser.
 
-If a key is missing, the server refuses to start and lists which variables to set. Log lines and errors
-are sanitized: provider errors are reduced to a message, and the configured keys are scrubbed from logs.
+Prefer pip? With Python 3.10 to 3.14:
 
-In development the server listens on 127.0.0.1 only (set `HOST` to change that).
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install livekit-agents==1.8.11 livekit-plugins-deepgram==1.8.11 livekit-plugins-elevenlabs==1.8.11 livekit-plugins-openai==1.8.11 livekit-plugins-simli==1.8.11 python-dotenv==1.2.4
+```
 
-If you want to try Simli but don't have API access to these third parties, ask in
-[Discord](https://discord.gg/yQx49zNF4d) and we can help.
+Then use `python agent.py ...` wherever this README says `uv run agent.py ...`.
 
-### Environment variables
+## Run it
 
-| Variable | Required | Default | What it is |
-|---|---|---|---|
-| `SIMLI_API_KEY` | yes | | From https://app.simli.com |
-| `DEEPGRAM_API_KEY` | yes | | From https://console.deepgram.com |
-| `OPENAI_API_KEY` | yes | | From https://platform.openai.com/api-keys |
-| `ELEVENLABS_API_KEY` | yes | | From https://elevenlabs.io/app/settings/api-keys |
-| `SIMLI_FACE_ID` | | `14c60d62-…` (Simli's default Trinity-2 face) | Avatar face: a [preset](https://docs.simli.com/api-reference/preset-faces) or your own from the dashboard |
-| `ELEVENLABS_VOICE_ID` | | `cgSgspJ2msm6clMCkdW9` (Jessica, female) | ElevenLabs voice. Match it to the face |
-| `ELEVENLABS_MODEL_ID` | | `eleven_flash_v2_5` | ElevenLabs model (low latency) |
-| `OPENAI_MODEL` | | `gpt-6-luna` | OpenAI model |
-| `OPENAI_REASONING_EFFORT` | | `none` | `none` for fastest replies; `off` for models without reasoning |
-| `DEEPGRAM_MODEL` / `DEEPGRAM_LANGUAGE` | | `nova-3` / `en` | Speech-to-text model and language |
-| `PORT` | | `3000` | Server port |
-| `HOST` | | `127.0.0.1` in dev, all interfaces in production | Interface to listen on |
-| `ALLOWED_ORIGINS` | in production | `http://localhost:$PORT` | Comma-separated origins allowed to call the API and WebSocket |
-| `ALLOW_UNAUTHENTICATED_SESSIONS` | | `false` | Production refuses to start sessions until you add auth; `true` overrides that for a private test |
-| `MAX_CONCURRENT_SESSIONS` | | `5` | Sessions the server allows at once |
-| `MAX_SESSIONS_PER_IP` | | `2` | Sessions one client (IPv4 address or IPv6 /64) may hold at once |
-| `LOG_TRANSCRIPTS` | | on in dev, off in production | Log what the user and the avatar say |
-| `SIMLI_MAX_SESSION_LENGTH` / `SIMLI_MAX_IDLE_TIME` | | `600` / `180` | Simli session bounds in seconds |
+1. Start the agent: `uv run agent.py dev` (or `python agent.py dev` with pip).
+2. In a second terminal, start the page: `cd frontend && npm install && npm run dev`
+3. Open http://localhost:3000, click **Start** and allow the microphone. The avatar greets you once it's ready. **End** leaves the room.
 
-Never put a key in a `NEXT_PUBLIC_` variable: those are bundled into the browser. The server refuses to
-start if it finds one. Earlier versions of this repo used `NEXT_PUBLIC_SIMLI_API_KEY`: rename it to `SIMLI_API_KEY`,
-and **rotate that key** in the Simli dashboard, because it was readable by anyone who loaded the page.
+`npm run dev` listens on 127.0.0.1 only, so other machines on your network can't open the page and start sessions on your keys. To try it from another device, expose it deliberately (for example `npx next dev -H 0.0.0.0`), and only on a network you trust.
 
-### Scripts
+The agent registers as `simli-pipeline-agent` and only joins rooms whose token dispatches it by that name, as the page's token does. That explicit dispatch matters because a LiveKit project can have other agents deployed (for example the OpenAI Realtime starter, as `simli-agent`) that would otherwise join every room. To rename it, set `LIVEKIT_AGENT_NAME` in both `.env` and `frontend/.env.local`.
 
-| Command | What it does |
-|---|---|
-| `npm run dev` | Development server with hot reload (`tsx server.ts`) |
-| `npm run build` | Production build of the Next.js app |
-| `npm start` | Production server (`NODE_ENV=production tsx server.ts`), after `npm run build` |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | Generates Next.js types, then runs `tsc --noEmit` |
+Alternatively, talk to it from LiveKit's [Agents Playground](https://agents-playground.livekit.io): connect it to your project and set **Agent name** to `simli-pipeline-agent`.
+
+`uv run agent.py console` talks to the agent in your terminal instead. It is voice only: console mode has no LiveKit room, so there is no avatar. It needs a microphone (and PortAudio on Linux).
+
+`uv run agent.py dev` shows debug logs; restart it after code changes. livekit-agents 1.8 marks the `dev` and `console` subcommands as deprecated, and `dev` no longer reloads on changes. The [LiveKit CLI](https://docs.livekit.io/agents/server/startup-modes/) (2.18.8 or later) runs the same `agent.py` with `lk agent dev` and `lk agent console`.
 
 ## Make it yours
 
-- **Face:** set `SIMLI_FACE_ID`. Pick a [preset](https://docs.simli.com/api-reference/preset-faces) or create
-  your own avatar from a photo at https://app.simli.com.
-- **Voice:** set `ELEVENLABS_VOICE_ID`, and pick a voice that matches the face. The default face
-  (`14c60d62-6ebf-424d-b626-1f4f91c33b04`, Simli's default Trinity-2 face) is a woman, so the default voice is
-  the female premade voice Jessica. If you change the face, check the voice still fits.
-- **Persona and greeting:** edit `SYSTEM_PROMPT` and `GREETING` in `server/config.ts`.
-- **Video shape:** the avatar streams 16:9 at 1366x768 (Trinity-2's full frame) to fit the player. For a
-  square layout, set `streaming_width: 768, streaming_height: 768` in `server.ts` and change `aspect-video` to
-  `aspect-square` in `app/components/VideoBox.tsx` and `app/components/DottedFace.tsx` (they must match). See
-  [Trinity-2 framing](https://docs.simli.com/api-reference/trinity-2).
+Everything for the agent is near the top of [`agent.py`](agent.py), and the common changes are environment variables in `.env`:
 
-### Other STT, LLM and TTS providers
+- **Face:** any Trinity-2 face ID in `SIMLI_FACE_ID`. The default is Simli's default Trinity-2 face (`14c60d62-6ebf-424d-b626-1f4f91c33b04`). Pick a [preset](https://docs.simli.com/api-reference/preset-faces) or [make your own from a photo](https://app.simli.com).
+- **Voice:** any voice from your ElevenLabs voice library in `ELEVENLABS_VOICE_ID`. The default is the premade voice "Jessica" (`cgSgspJ2msm6clMCkdW9`). Match the voice to the face: the default face is a woman, and Jessica is a female voice. The TTS model, `eleven_flash_v2_5`, is ElevenLabs' lowest-latency one.
+- **Model:** `OPENAI_MODEL`, default `gpt-6-luna`, OpenAI's most efficient chat model. Reasoning is off (`reasoning_effort="none"`), because it adds seconds before the first word; `OPENAI_REASONING_EFFORT` changes that. For a model without reasoning support (for example `gpt-4.1-mini`), set `OPENAI_REASONING_EFFORT=off`.
+- **Speech-to-text:** `deepgram.STT(model="nova-3", language="en")` in `build_session()`. For other languages, change `language` (or use `"multi"`) and the prompt.
+- **Framing:** the video is 16:9 at 1366x768, Trinity-2's full frame, with the avatar at the bottom centre. In the `SimliConfig` in `agent.py` you can change the size (1:1 and 9:16 work too), move the avatar, start the [camera](https://docs.simli.com/api-reference/trinity-2/camera) elsewhere, or add your own [background or foreground](https://docs.simli.com/api-reference/trinity-2/backgrounds). See [Framing the video](https://docs.simli.com/api-reference/trinity-2#framing-the-video).
+- **Prompt and greeting:** `INSTRUCTIONS` and the `generate_reply` call.
+- **Session limits:** the avatar leaves after 10 minutes (`max_session_length`) or 5 minutes without speaking (`max_idle_time`), and the session ends with it.
+- **Other providers and tools:** it's a regular LiveKit agent, so any [STT, LLM or TTS plugin](https://docs.livekit.io/agents/models/) can replace these three, and everything in the [LiveKit Agents docs](https://docs.livekit.io/agents/) applies.
 
-You can swap any of the three services. Simli only needs the reply audio as raw PCM16, 16 kHz, mono
-(little-endian, no header), sent with `sendAudioData` in chunks. If your TTS outputs another format or
-sample rate, convert it first. See https://docs.simli.com for details, or ask in Discord.
+The page is [`frontend/app/page.tsx`](frontend/app/page.tsx) (layout and text) and [`frontend/app/components/AvatarCall.tsx`](frontend/app/components/AvatarCall.tsx) (the call). It uses [livekit-client](https://docs.livekit.io/reference/client-sdk-js/) directly; for transcripts, agent state and more, see LiveKit's [agent-starter-react](https://github.com/livekit-examples/agent-starter-react).
 
-## How a conversation works
+## How it works
 
-1. The browser asks for the microphone, then gets a Simli session token from `POST /api/session` and starts
-   the avatar (`SimliClient.start()`).
-2. Only once the avatar is on screen does the browser open the `/ws` WebSocket, so the greeting isn't lost.
-   The server speaks the greeting right away.
-3. The microphone is streamed as PCM16 16 kHz to Deepgram. When Deepgram detects the end of an utterance
-   (`endpointing` / `UtteranceEnd`), the text goes to OpenAI, and the streamed reply goes sentence by sentence
-   to ElevenLabs. Its audio is forwarded to the browser and into Simli.
-4. **Barge-in:** when you start talking while the avatar speaks, the server cancels the LLM and TTS requests
-   and tells the browser to call `ClearBuffer()`, so the avatar stops mid-sentence.
-5. Ending any part ends everything: the Stop button, Simli's `maxSessionLength` / `maxIdleTime`, a server
-   error, closing the tab.
+1. You click **Start**. The page's API route makes up a room name and signs a token that lets you join that room and dispatches `simli-pipeline-agent` to it. Joining creates the room, and LiveKit sends the agent there.
+2. The agent connects and starts the avatar. The [Simli plugin](https://docs.livekit.io/agents/models/avatar/plugins/simli/) sends the face and framing to Simli, and Simli's avatar joins the room.
+3. The agent waits until the avatar is publishing video. Only then does it start listening and greet you, so its first words aren't lost.
+4. LiveKit Agents runs the conversation. Your mic goes to Deepgram as a stream; Silero voice activity detection and LiveKit's [turn detector](https://docs.livekit.io/agents/logic/turns/turn-detector/) decide when you've finished your turn; the transcript goes to OpenAI, and its reply streams into ElevenLabs as it is written. If you talk over the avatar, the agent stops its reply.
+5. The agent streams ElevenLabs' voice to the avatar over LiveKit. The avatar publishes lip-synced video and voice on the agent's behalf, under its own identity; the page plays whichever remote video and audio tracks arrive.
+6. The avatar's session ends with the agent's. When you leave, or the avatar reaches its time limits, the agent deletes the room to tidy up, so everyone leaves at once. If the agent itself stops mid-call, its avatar leaves with it. Either way the page returns to its start screen.
 
-## Security and production checklist
+Silero VAD and the turn detector are built into livekit-agents 1.8, so there are no extra plugins or model downloads. The turn detector runs a small model on the agent's CPU under `start`. Under `dev` it uses the full model on [LiveKit Inference](https://docs.livekit.io/agents/models/inference/), which authenticates with your LiveKit project's keys (usage past the monthly development allowance is billed on paid LiveKit plans), and falls back to the local model if that's unavailable.
 
-This starter is safe to run locally, but **`/api/session` and `/ws` are not authenticated**. In production
-the server therefore refuses to start sessions (403) until you add authentication, or set
-`ALLOW_UNAUTHENTICATED_SESSIONS=true` for a private test.
+## Before you go to production
 
-A Simli session token from `/api/session` can start a Simli session on its own, without this server, and
-the voice pipeline spends Deepgram, OpenAI and ElevenLabs credits. **Per-user authentication is the only
-real bound on spending.** What is built in:
+Anyone who can join a room in your LiveKit project starts a conversation, which uses your Simli minutes and your Deepgram, OpenAI and ElevenLabs credit. The page's `/api/token` route has no login, so anyone who can reach the page could mint a token. That's why a production build (`npm run build` + `npm start`, or any deployed host) refuses with `403` until you change it. Add your own login and rate limiting where the `TODO` in [`app/api/token/route.ts`](frontend/app/api/token/route.ts) says.
 
-- All keys are server-only; the browser gets a short-lived Simli session token. Logs never contain raw
-  provider error objects (which can include request headers), and known key values are scrubbed.
-- `/api/session` and `/ws` accept only requests whose `Origin` is in `ALLOWED_ORIGINS`.
-- `/ws` needs a one-time ticket from `/api/session` (valid 60 s, single use).
-- Concurrency is counted from the moment a token is issued, not when `/ws` opens: at most
-  `MAX_CONCURRENT_SESSIONS` overall and `MAX_SESSIONS_PER_IP` per client (IPv4 address or IPv6 /64). A slot
-  is released when the conversation ends, or 60 s after issue if `/ws` is never opened (the Simli token itself
-  may still be used until `SIMLI_MAX_SESSION_LENGTH`).
-- Session requests are rate limited per client (token bucket: 5, refilled at 5 per minute).
-- Per conversation: 64 KB max WebSocket message, binary frames only, mic audio capped at 64 KB/s (2x real
-  time), closed after 15 s without audio frames or 60 s without speech (silence doesn't keep a slot), closed if
-  the browser stops reading, and ended at `SIMLI_MAX_SESSION_LENGTH`.
-- Simli sessions are bounded by `maxSessionLength` and `maxIdleTime`.
-- Security headers on every response: `Content-Security-Policy: frame-ancestors 'self'`,
-  `Permissions-Policy: microphone=(self), camera=()`, `X-Content-Type-Options: nosniff`,
-  `Referrer-Policy: strict-origin-when-cross-origin`; no `X-Powered-By`.
-- Production returns generic error messages; details go to the server log only.
+For a demo or an internal network only, `ALLOW_UNAUTHENTICATED_SESSIONS=true` in `frontend/.env.local` (or your host's environment) turns the check off: anyone who can reach the page can then start sessions on your keys. Don't set it on a public deployment.
 
-All limits are in memory: they reset on restart and don't work across several instances.
-
-### Before you deploy
-
-- [ ] **Add authentication.** Check the signed-in user in `handleSessionRequest()` in `server.ts` (marked
-      `TODO`), then remove `ALLOW_UNAUTHENTICATED_SESSIONS`. Origin checks stop other websites, not scripts.
-- [ ] **Add real rate limiting** per user, at your platform or with a shared store. Behind a proxy,
-      `clientKey()` in `server/security.ts` sees the proxy's address: use your platform's client-IP header.
-- [ ] Set `ALLOWED_ORIGINS` to your site's `https://` origin, and serve over HTTPS (the microphone needs a
-      secure context).
-- [ ] Set spending limits and usage alerts with Simli, Deepgram, OpenAI and ElevenLabs.
-- [ ] If a key was ever in a `NEXT_PUBLIC_` variable (or committed anywhere), rotate it.
-- [ ] Keep `.env` out of git (it's in `.gitignore`); use your host's secret settings.
-- [ ] Leave `LOG_TRANSCRIPTS` off unless you have a reason (and consent) to keep conversation text in logs.
-- [ ] Hosting: this app needs a long-running Node.js server with WebSocket support (for example a VM,
-      container, Fly.io, Render or Railway). Serverless platforms such as Vercel can't host the custom server.
+Each token is valid for 2 minutes, for one new room of at most 3 participants (you, the agent and its avatar), and only lets the user publish their microphone. To deploy the agent, run `uv run agent.py start` on any server, or see [LiveKit's deployment guide](https://docs.livekit.io/deploy/agents/). The page builds with `npm run build` and runs with `npm start`, or deploys to any Next.js host.
 
 ## Using a coding agent?
 
-This repo includes the Simli agent skill in `.agents/skills/simli` (linked at `.claude/skills/simli` for
-Claude Code), so coding agents know how to use Simli correctly: tokens, audio format, interruptions,
-framing and troubleshooting. To install it in another project, run `npx skills add simliai/skills`.
+This repo includes the [Simli agent skill](https://github.com/simliai/skills) in `.agents/skills/simli` (linked from `.claude/skills/simli`), so Claude Code, Codex, Cursor and other agents that support skills know how to change the face, framing, camera and prompt, and how to fix common errors. To add it to another project: `npx skills add simliai/skills`.
 
-## Links
+## Troubleshooting
 
-[Simli](https://simli.com) · [Simli docs](https://docs.simli.com) · [Deepgram](https://deepgram.com) ·
-[OpenAI](https://platform.openai.com) · [ElevenLabs](https://elevenlabs.io) · [Discord](https://discord.gg/yQx49zNF4d)
+- **`the Simli avatar didn't start`:** the Simli error logged just before it says why. `401` means `SIMLI_API_KEY` is wrong. `400` means the face ID wasn't found. `429` means your Simli account is already running as many sessions as it can.
+- **`the Simli avatar didn't join the room`:** usually Simli couldn't reach your LiveKit server. `LIVEKIT_URL` must be reachable from the internet (see [Setup](#setup)).
+- **The page says the avatar didn't join:** check that `uv run agent.py dev` is running, that both `.env` files hold the same `LIVEKIT_*` values, and that `LIVEKIT_AGENT_NAME` matches if you set it.
+- **The avatar appears but never speaks:** look for a Deepgram, OpenAI or ElevenLabs error in the agent's logs. A `KeyError: 'ELEVENLABS_API_KEY'` means it's missing from `.env`. An OpenAI error about `reasoning_effort` means your `OPENAI_MODEL` doesn't support reasoning: set `OPENAI_REASONING_EFFORT=off`. An ElevenLabs `401` or quota error means the key is wrong or the plan doesn't cover API streaming.
+- **The avatar keeps interrupting itself:** its voice is reaching your mic. Use headphones.
+
+## More
+
+- [Simli docs](https://docs.simli.com) and [all starters](https://docs.simli.com/api-reference/samples/all-samples)
+- Source: https://github.com/simliai/create-simli-app
+- Sibling starters: https://github.com/simliai/create-simli-app-livekit-agents and https://github.com/simliai/create-simli-app-pipecat
+- Questions? Ask on [Discord](https://discord.gg/yQx49zNF4d).
