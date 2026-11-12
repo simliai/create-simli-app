@@ -1,45 +1,39 @@
 {
   "name": "create-simli-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx server.ts",
     "build": "next build",
-    "start-server": "tsx server.ts",
-    "start": "npm-run-all --parallel start-server dev",
-    "lint": "next lint"
+    "start": "NODE_ENV=production tsx server.ts",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@deepgram/sdk": "^3.5.1",
-    "axios": "^1.7.5",
+    "@deepgram/sdk": "^5.18.0",
+    "@next/env": "^16.4.6",
     "clsx": "^2.1.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "groq-sdk": "^0.6.1",
-    "next": "14.2.35",
-    "openai": "^4.61.0",
-    "react": "^18",
-    "react-dom": "^18",
-    "react-hot-toast": "^2.4.1",
-    "simli-client": "^3.0.0",
-    "tailwind-merge": "^2.5.2",
-    "ws": "^8.18.0"
+    "next": "^16.4.6",
+    "openai": "^7.55.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "simli-client": "^3.2.0",
+    "tailwind-merge": "^2.6.0",
+    "tsx": "^4.23.15",
+    "ws": "^8.22.2"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
-    "@types/node": "^20.17.10",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "@types/ws": "^8.5.13",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.7",
-    "npm-run-all": "^4.1.5",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/ws": "^8.18.2",
+    "eslint": "^9",
+    "eslint-config-next": "^16.4.6",
     "postcss": "^8",
-    "tailwindcss": "^3.4.1",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.3"
   }
 }
