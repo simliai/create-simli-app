@@ -36,7 +36,10 @@ npm run dev            # http://localhost:3000
 Open http://localhost:3000, click **Test Interaction**, allow the microphone, and wait for the avatar
 to greet you. Use headphones if the avatar keeps interrupting itself (its voice reaching your mic).
 
-If a key is missing, the server refuses to start and lists which variables to set. It never prints key values.
+If a key is missing, the server refuses to start and lists which variables to set. Log lines and errors
+are sanitized: provider errors are reduced to a message, and the configured keys are scrubbed from logs.
+
+In development the server listens on 127.0.0.1 only (set `HOST` to change that).
 
 If you want to try Simli but don't have API access to these third parties, ask in
 [Discord](https://discord.gg/yQx49zNF4d) and we can help.
@@ -56,12 +59,17 @@ If you want to try Simli but don't have API access to these third parties, ask i
 | `OPENAI_REASONING_EFFORT` | | `none` | `none` for fastest replies; `off` for models without reasoning |
 | `DEEPGRAM_MODEL` / `DEEPGRAM_LANGUAGE` | | `nova-3` / `en` | Speech-to-text model and language |
 | `PORT` | | `3000` | Server port |
+| `HOST` | | `127.0.0.1` in dev, all interfaces in production | Interface to listen on |
 | `ALLOWED_ORIGINS` | in production | `http://localhost:$PORT` | Comma-separated origins allowed to call the API and WebSocket |
-| `MAX_CONCURRENT_SESSIONS` | | `5` | Conversations the server runs at once |
+| `ALLOW_UNAUTHENTICATED_SESSIONS` | | `false` | Production refuses to start sessions until you add auth; `true` overrides that for a private test |
+| `MAX_CONCURRENT_SESSIONS` | | `5` | Sessions the server allows at once |
+| `MAX_SESSIONS_PER_IP` | | `2` | Sessions one client (IPv4 address or IPv6 /64) may hold at once |
+| `LOG_TRANSCRIPTS` | | on in dev, off in production | Log what the user and the avatar say |
 | `SIMLI_MAX_SESSION_LENGTH` / `SIMLI_MAX_IDLE_TIME` | | `600` / `180` | Simli session bounds in seconds |
 
 Never put a key in a `NEXT_PUBLIC_` variable: those are bundled into the browser. The server refuses to
-start if it finds one (earlier versions of this repo used `NEXT_PUBLIC_SIMLI_API_KEY`; rename it to `SIMLI_API_KEY`).
+start if it finds one. Earlier versions of this repo used `NEXT_PUBLIC_SIMLI_API_KEY`: rename it to `SIMLI_API_KEY`,
+and **rotate that key** in the Simli dashboard, because it was readable by anyone who loaded the page.
 
 ### Scripts
 
@@ -105,29 +113,46 @@ sample rate, convert it first. See https://docs.simli.com for details, or ask in
 
 ## Security and production checklist
 
-This starter is safe to run locally, but **`/api/session` and `/ws` are not authenticated**. Anyone who can
-reach your server can start sessions and spend your Simli minutes and your Deepgram, OpenAI and ElevenLabs
-credits. What is built in:
+This starter is safe to run locally, but **`/api/session` and `/ws` are not authenticated**. In production
+the server therefore refuses to start sessions (403) until you add authentication, or set
+`ALLOW_UNAUTHENTICATED_SESSIONS=true` for a private test.
 
-- All keys are server-only; the browser gets a short-lived Simli session token.
+A Simli session token from `/api/session` can start a Simli session on its own, without this server, and
+the voice pipeline spends Deepgram, OpenAI and ElevenLabs credits. **Per-user authentication is the only
+real bound on spending.** What is built in:
+
+- All keys are server-only; the browser gets a short-lived Simli session token. Logs never contain raw
+  provider error objects (which can include request headers), and known key values are scrubbed.
 - `/api/session` and `/ws` accept only requests whose `Origin` is in `ALLOWED_ORIGINS`.
 - `/ws` needs a one-time ticket from `/api/session` (valid 60 s, single use).
-- In-memory limits: 5 sessions per minute per IP, `MAX_CONCURRENT_SESSIONS` at once, 64 KB per WebSocket
-  message, a cap on audio bytes per second, idle connections closed after 30 s without audio, and every
-  conversation ends after `SIMLI_MAX_SESSION_LENGTH`.
+- Concurrency is counted from the moment a token is issued, not when `/ws` opens: at most
+  `MAX_CONCURRENT_SESSIONS` overall and `MAX_SESSIONS_PER_IP` per client (IPv4 address or IPv6 /64). A slot
+  is released when the conversation ends, or 60 s after issue if `/ws` is never opened (the Simli token itself
+  may still be used until `SIMLI_MAX_SESSION_LENGTH`).
+- Session requests are rate limited per client (token bucket: 5, refilled at 5 per minute).
+- Per conversation: 64 KB max WebSocket message, binary frames only, mic audio capped at 64 KB/s (2x real
+  time), closed after 15 s without audio frames or 60 s without speech (silence doesn't keep a slot), closed if
+  the browser stops reading, and ended at `SIMLI_MAX_SESSION_LENGTH`.
 - Simli sessions are bounded by `maxSessionLength` and `maxIdleTime`.
+- Security headers on every response: `Content-Security-Policy: frame-ancestors 'self'`,
+  `Permissions-Policy: microphone=(self), camera=()`, `X-Content-Type-Options: nosniff`,
+  `Referrer-Policy: strict-origin-when-cross-origin`; no `X-Powered-By`.
+- Production returns generic error messages; details go to the server log only.
 
-Before you deploy:
+All limits are in memory: they reset on restart and don't work across several instances.
+
+### Before you deploy
 
 - [ ] **Add authentication.** Check the signed-in user in `handleSessionRequest()` in `server.ts` (marked
-      `TODO`). Origin checks stop other websites, not scripts.
-- [ ] **Add real rate limiting** per user, at your platform or with a shared store. The built-in limits are
-      in memory, reset on restart and don't work across several instances. Behind a proxy, `clientIp()` in
-      `server/security.ts` sees the proxy's address: use your platform's client-IP header.
+      `TODO`), then remove `ALLOW_UNAUTHENTICATED_SESSIONS`. Origin checks stop other websites, not scripts.
+- [ ] **Add real rate limiting** per user, at your platform or with a shared store. Behind a proxy,
+      `clientKey()` in `server/security.ts` sees the proxy's address: use your platform's client-IP header.
 - [ ] Set `ALLOWED_ORIGINS` to your site's `https://` origin, and serve over HTTPS (the microphone needs a
       secure context).
-- [ ] Set spending limits or alerts with each provider.
+- [ ] Set spending limits and usage alerts with Simli, Deepgram, OpenAI and ElevenLabs.
+- [ ] If a key was ever in a `NEXT_PUBLIC_` variable (or committed anywhere), rotate it.
 - [ ] Keep `.env` out of git (it's in `.gitignore`); use your host's secret settings.
+- [ ] Leave `LOG_TRANSCRIPTS` off unless you have a reason (and consent) to keep conversation text in logs.
 - [ ] Hosting: this app needs a long-running Node.js server with WebSocket support (for example a VM,
       container, Fly.io, Render or Railway). Serverless platforms such as Vercel can't host the custom server.
 
