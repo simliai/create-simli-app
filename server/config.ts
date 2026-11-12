@@ -24,8 +24,14 @@ const REQUIRED_KEYS = [
 export interface Config {
   dev: boolean;
   port: number;
+  /** Interface to bind; undefined = all interfaces (Node's default). */
+  host: string | undefined;
   allowedOrigins: Set<string>;
   maxConcurrentSessions: number;
+  maxSessionsPerClient: number;
+  /** Production only: serve /api/session without authentication. */
+  allowUnauthenticatedSessions: boolean;
+  logTranscripts: boolean;
   simli: { apiKey: string; faceId: string; maxSessionLength: number; maxIdleTime: number };
   deepgram: { apiKey: string; model: string; language: string };
   openai: { apiKey: string; model: string; reasoningEffort: string };
@@ -67,13 +73,23 @@ export function loadConfig(): { config: Config; errors: string[]; warnings: stri
     if (name.startsWith("NEXT_PUBLIC_") && /KEY|SECRET|TOKEN/i.test(name)) {
       errors.push(
         `${name} is set. Variables starting with NEXT_PUBLIC_ are bundled into the browser. ` +
-          `Remove it and use the server-only name (e.g. SIMLI_API_KEY) instead.`,
+          `Remove it, use the server-only name (e.g. SIMLI_API_KEY), and rotate that key: it may have been exposed.`,
       );
     }
   }
 
   const dev = process.env.NODE_ENV !== "production";
   const port = intFromEnv("PORT", 3000, errors);
+  // Development listens on loopback only; production uses the platform's bind.
+  const host = str("HOST") || (dev ? "127.0.0.1" : undefined);
+  const allowUnauthenticatedSessions = str("ALLOW_UNAUTHENTICATED_SESSIONS") === "true";
+  if (!dev && allowUnauthenticatedSessions) {
+    warnings.push(
+      "ALLOW_UNAUTHENTICATED_SESSIONS=true: anyone who can reach this server can start sessions and spend your credits.",
+    );
+  }
+  const logTranscriptsRaw = str("LOG_TRANSCRIPTS");
+  const logTranscripts = logTranscriptsRaw ? logTranscriptsRaw === "1" || logTranscriptsRaw === "true" : dev;
 
   const originsRaw = str("ALLOWED_ORIGINS");
   const allowedOrigins = new Set(
@@ -96,8 +112,12 @@ export function loadConfig(): { config: Config; errors: string[]; warnings: stri
   const config: Config = {
     dev,
     port,
+    host,
     allowedOrigins,
     maxConcurrentSessions: intFromEnv("MAX_CONCURRENT_SESSIONS", 5, errors),
+    maxSessionsPerClient: intFromEnv("MAX_SESSIONS_PER_IP", 2, errors),
+    allowUnauthenticatedSessions,
+    logTranscripts,
     simli: {
       apiKey: str("SIMLI_API_KEY"),
       faceId,

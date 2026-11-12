@@ -8,13 +8,17 @@ import { generateSimliSessionToken } from "simli-client";
 import { WebSocketServer } from "ws";
 import { loadConfig, type Config } from "./server/config";
 import { Conversation } from "./server/conversation";
-import { clientIp, isAllowedOrigin, RateLimiter, TicketStore } from "./server/security";
+import { errMsg, installProcessHandlers, registerSecrets } from "./server/log";
+import { clientKey, isAllowedOrigin, RateLimiter, SlotPool, TicketStore } from "./server/security";
+import { SECURITY_HEADERS } from "./server/securityHeaders";
 
 const dev = process.env.NODE_ENV !== "production";
 // Same .env loading rules as `next dev` / `next start` (.env, .env.local, ...).
-loadEnvConfig(process.cwd(), dev);
+loadEnvConfig(process.cwd(), dev, { info: () => {}, error: (...a: unknown[]) => console.error(...a.map(errMsg)) });
 
 const { config, errors, warnings } = loadConfig();
+registerSecrets([config.simli.apiKey, config.deepgram.apiKey, config.openai.apiKey, config.elevenlabs.apiKey]);
+installProcessHandlers();
 for (const w of warnings) console.warn(`[config] warning: ${w}`);
 if (errors.length) {
   console.error(
@@ -26,11 +30,12 @@ if (errors.length) {
 }
 
 const MAX_WS_MESSAGE_BYTES = 64 * 1024; // mic frames are ~3.2 KB
-const tickets = new TicketStore();
-const sessionLimiter = new RateLimiter(5, 60_000); // 5 sessions per minute per IP
-let activeConversations = 0;
+const tickets = new TicketStore(60_000);
+const slots = new SlotPool(config.maxConcurrentSessions, config.maxSessionsPerClient);
+const sessionLimiter = new RateLimiter(5, 5); // bursts of 5, then 5 per minute, per client
 
 function sendJson(res: ServerResponse, status: number, body: object) {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
   res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
   res.end(JSON.stringify(body));
 }
@@ -38,16 +43,30 @@ function sendJson(res: ServerResponse, status: number, body: object) {
 /**
  * POST /api/session: mints a short-lived Simli session token (the API key never
  * leaves the server) plus a one-time ticket for the conversation WebSocket.
- *
- * TODO before deploying: check the signed-in user here. Anyone who can call this
- * endpoint can spend your Simli minutes and provider credits.
+ * The token can start a Simli session on its own, so a concurrency slot is
+ * reserved here, not when the WebSocket opens.
  */
 async function handleSessionRequest(req: IncomingMessage, res: ServerResponse, cfg: Config) {
   if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
   if (!isAllowedOrigin(req, cfg.allowedOrigins)) return sendJson(res, 403, { error: "Origin not allowed" });
-  if (!sessionLimiter.allow(clientIp(req))) return sendJson(res, 429, { error: "Too many sessions. Try again in a minute." });
-  if (activeConversations >= cfg.maxConcurrentSessions) {
-    return sendJson(res, 503, { error: "The server is busy (MAX_CONCURRENT_SESSIONS reached). Try again later." });
+
+  // TODO before deploying: check the signed-in user here (session cookie, JWT, ...)
+  // and return 401 if there is none. Anyone who can call this endpoint can spend
+  // your Simli minutes and provider credits. Until then, production refuses:
+  if (!cfg.dev && !cfg.allowUnauthenticatedSessions) {
+    return sendJson(res, 403, {
+      error:
+        "Sessions are disabled in production until you add authentication (see the TODO in server.ts). " +
+        "For a private test you can set ALLOW_UNAUTHENTICATED_SESSIONS=true.",
+    });
+  }
+
+  const key = clientKey(req);
+  if (!sessionLimiter.allow(key)) return sendJson(res, 429, { error: "Too many sessions. Try again in a minute." });
+  const slot = slots.reserve(key);
+  if (slot === "busy") return sendJson(res, 503, { error: "The server is busy. Try again later." });
+  if (slot === "per-client") {
+    return sendJson(res, 429, { error: "Too many sessions open from your network. End one and try again." });
   }
   req.resume(); // the body isn't used
 
@@ -66,26 +85,35 @@ async function handleSessionRequest(req: IncomingMessage, res: ServerResponse, c
         streaming_height: 768,
       },
     });
-    if (warnings?.length) console.warn("[simli] token warnings:", warnings);
-    sendJson(res, 200, { sessionToken: session_token, wsTicket: tickets.issue() });
+    if (warnings?.length) console.warn("[simli] token warnings:", warnings.map(errMsg));
+    sendJson(res, 200, { sessionToken: session_token, wsTicket: tickets.issue(slot) });
   } catch (err) {
-    // generateSimliSessionToken throws the API's response body (no key in it).
-    const detail = err instanceof Error ? err.message : String(err);
+    slot.release();
+    // generateSimliSessionToken throws the API's raw response text: log it
+    // (sanitized), and only show it to the developer in development.
+    const detail = errMsg(err);
     console.error("[simli] token request failed:", detail);
-    sendJson(res, 502, { error: `Simli token request failed: ${detail}` });
+    sendJson(res, 502, {
+      error: cfg.dev ? `Simli token request failed: ${detail}` : "Could not start the avatar session. Try again later.",
+    });
   }
 }
 
 async function main() {
-  const app = next({ dev, port: config.port, hostname: "localhost" });
+  const app = next({ dev, port: config.port, hostname: config.host ?? "localhost" });
   const handle = app.getRequestHandler();
   await app.prepare();
+  // Next.js registers process handlers that print whole error objects; provider
+  // errors can carry request headers (API keys), so use our sanitized ones only.
+  process.removeAllListeners("uncaughtException");
+  process.removeAllListeners("unhandledRejection");
+  installProcessHandlers();
 
   const server = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
     if (path === "/api/session") {
       handleSessionRequest(req, res, config).catch((err) => {
-        console.error("[session]", err);
+        console.error("[session] failed:", errMsg(err));
         if (!res.headersSent) sendJson(res, 500, { error: "Internal error" });
       });
       return;
@@ -95,39 +123,46 @@ async function main() {
 
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_WS_MESSAGE_BYTES });
 
-  // Next.js attaches its own upgrade listener (dev HMR on /_next/*) to this server
-  // and ignores paths it doesn't own, so only /ws is handled here.
   server.on("upgrade", (req, socket, head) => {
     const url = new URL(req.url ?? "/", "http://localhost");
-    if (url.pathname.startsWith("/_next/")) return;
     const reject = (status: string) => {
-      socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\n\r\n`);
+      socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
     };
+    // In development, Next.js handles its hot-reload socket (/_next/*) through its
+    // own upgrade listener on this server. In production nothing does: reject.
+    if (url.pathname.startsWith("/_next/")) {
+      if (!dev) reject("404 Not Found");
+      return;
+    }
     if (url.pathname !== "/ws") return reject("404 Not Found");
     if (!isAllowedOrigin(req, config.allowedOrigins)) return reject("403 Forbidden");
-    if (!tickets.redeem(url.searchParams.get("ticket"))) return reject("401 Unauthorized");
-    if (activeConversations >= config.maxConcurrentSessions) return reject("503 Service Unavailable");
+    const slot = tickets.redeem(url.searchParams.get("ticket"));
+    if (!slot) return reject("401 Unauthorized");
+    // The slot is held until the connection's socket closes, however it ends.
+    socket.once("close", slot.release);
 
     wss.handleUpgrade(req, socket, head, (ws) => {
-      activeConversations += 1;
       const id = Math.random().toString(36).slice(2, 8);
-      const log = (msg: string, ...rest: unknown[]) => console.log(`[conv ${id}] ${msg}`, ...rest);
-      log(`connected (${activeConversations} active)`);
-      const conversation = new Conversation(ws, config, log);
+      const log = (msg: string) => console.log(`[conv ${id}] ${msg}`);
+      log(`connected (${slots.active} active)`);
+      const conversation = new Conversation(ws, config, log, config.logTranscripts);
       ws.once("close", () => {
-        activeConversations -= 1;
+        slot.release();
         conversation.close();
       });
       conversation.start().catch((err) => {
-        log("failed to start:", err);
+        log(`failed to start: ${errMsg(err)}`);
         ws.close(1011, "Failed to start");
       });
     });
   });
 
-  server.listen(config.port, () => {
-    console.log(`> Ready on http://localhost:${config.port} (${dev ? "development" : "production"})`);
-  });
+  const onListening = () => {
+    const shown = config.host && config.host !== "0.0.0.0" && config.host !== "::" ? config.host : "localhost";
+    console.log(`> Ready on http://${shown}:${config.port} (${dev ? "development" : "production"})`);
+  };
+  if (config.host) server.listen(config.port, config.host, onListening);
+  else server.listen(config.port, onListening);
 
   const shutdown = () => {
     for (const client of wss.clients) client.close(1001, "Server shutting down");
@@ -139,6 +174,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error("[server] failed to start:", errMsg(err));
   process.exit(1);
 });
