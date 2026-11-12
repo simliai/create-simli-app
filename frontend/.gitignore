@@ -1,0 +1,17 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# env files: .env.local holds your LiveKit secret
+.env*
+!.env.example
+
+# misc
+.DS_Store
+npm-debug.log*
+.vercel
